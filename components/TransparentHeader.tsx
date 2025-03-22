@@ -29,9 +29,6 @@ const TransparentHeader = ({ title }) => {
             <Text style={styles.title}>{getPageName()}</Text>
             <View style={styles.iconContainer}>
                 <TouchableOpacity style={styles.iconButton}>
-                    <Feather name="search" size={24} color={COLORS.gray} />
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.iconButton}>
                     <Feather name="user" size={24} color={COLORS.gray} />
                 </TouchableOpacity>
             </View>

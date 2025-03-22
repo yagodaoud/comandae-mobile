@@ -34,7 +34,7 @@ export default function Home() {
 
     return (
         <View style={styles.container}>
-            <TransparentHeader />
+            <TransparentHeader title="Home" />
 
             <ScrollView
                 style={styles.scrollView}
@@ -111,7 +111,7 @@ export default function Home() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: COLORS.white,
+        backgroundColor: COLORS.background,
     },
     scrollView: {
         flex: 1,
