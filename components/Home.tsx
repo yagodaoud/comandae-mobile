@@ -5,38 +5,26 @@ import TransparentHeader from '@/components/TransparentHeader';
 import { Feather } from '@expo/vector-icons';
 import { COLORS } from '@/constants/theme';
 
-const CategoryCard = ({ icon, title, count, subtitle, actionText }) => {
+const CategoryCard = ({ icon, title, count, subtitle }) => {
     return (
         <View style={styles.categoryCard}>
             <View style={styles.categoryTop}>
                 <View style={styles.categoryIconContainer}>
                     {icon}
                 </View>
-                <View style={styles.avatarGroup}>
-                    <Image
-                        source={require('@/assets/images/avatar-placeholder.png')}
-                        style={[styles.avatar, { right: 0 }]}
-                    />
-                    <Image
-                        source={require('@/assets/images/avatar-placeholder.png')}
-                        style={[styles.avatar, { right: 10 }]}
-                    />
-                </View>
             </View>
             <Text style={styles.categoryCount}>{count}</Text>
             <Text style={styles.categoryTitle}>{title}</Text>
-            <Text style={styles.categorySubtitle}>{subtitle}</Text>
+            {subtitle ? <Text style={styles.categorySubtitle}>{subtitle}</Text> : null}
             <View style={styles.categoryBottom}>
-                <View style={styles.progressBar}>
-                    <View style={[styles.progressFill, { width: '30%' }]} />
-                </View>
                 <TouchableOpacity style={styles.actionButton}>
-                    <Text style={styles.actionText}>{actionText}</Text>
+                    <Feather name="chevron-right" size={16} color={COLORS.primary} />
                 </TouchableOpacity>
             </View>
         </View>
     );
 };
+
 
 export default function Home() {
     const insets = useSafeAreaInsets();
@@ -53,76 +41,65 @@ export default function Home() {
                 contentContainerStyle={{ paddingBottom: bottomPadding }}
                 showsVerticalScrollIndicator={false}
             >
-                <Text style={styles.welcomeTitle}>Welcome to Comandae</Text>
+                <Text style={styles.welcomeTitle}>Bem vindo, {"Yago"}!</Text>
 
                 <View style={styles.buttonContainer}>
                     <TouchableOpacity style={styles.button}>
-                        <Text style={styles.buttonText}>View</Text>
+                        <Text style={styles.buttonText}>Configurações</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.button}>
-                        <Text style={styles.buttonText}>Insights</Text>
+                        <Text style={styles.buttonText}>Planos</Text>
                     </TouchableOpacity>
                 </View>
 
                 <View style={styles.insightCard}>
                     <View style={styles.insightHeader}>
                         <View>
-                            <Text style={styles.insightTitle}>Daily Insights</Text>
-                            <Text style={styles.insightSubtitle}>Track your daily operations here</Text>
+                            <Text style={styles.insightTitle}>Insights Diários</Text>
+                            <Text style={styles.insightSubtitle}>Resumo de desempenho</Text>
                         </View>
-                        <Image
-                            source={require('@/assets/images/avatar-placeholder.png')}
-                            style={styles.insightImage}
-                        />
                     </View>
 
-                    <Text style={styles.percentageText}>76%</Text>
+                    <Text style={styles.percentageText}>76% das metas atingidas</Text>
                     <View style={styles.progressContainer}>
                         <View style={styles.progressBackground}>
                             <View style={[styles.progressFill, { width: '76%' }]} />
                         </View>
                     </View>
+                    <Text style={styles.trendText}>↑ 5% em relação a ontem</Text>
                 </View>
 
                 <View style={styles.categoriesSection}>
                     <View style={styles.categoriesHeader}>
-                        <Text style={styles.categoriesTitle}>Categories</Text>
+                        <Text style={styles.categoriesTitle}>Categorias</Text>
                         <TouchableOpacity style={styles.upgradePill}>
-                            <Text style={styles.upgradeText}>UPGRADE PLAN</Text>
+                            <Text style={styles.upgradeText}>PREMIUM</Text>
                         </TouchableOpacity>
                     </View>
 
                     <View style={styles.categoryGrid}>
                         <CategoryCard
                             icon={<Feather name="book" size={24} color={COLORS.primary} />}
-                            count="5 New Menu"
-                            title="Manage"
-                            subtitle=""
-                            actionText="See All"
+                            count="5 Pratos no Menu"
+                            title="Cardápio"
                         />
                         <CategoryCard
                             icon={<Feather name="shopping-bag" size={24} color={COLORS.primary} />}
-                            count="2 New Orders"
-                            title="Manage"
-                            subtitle=""
-                            actionText="Process"
+                            count="2 Novos pedidos"
+                            title="Pedidos"
                         />
                     </View>
 
                     <View style={styles.categoryGrid}>
                         <CategoryCard
                             icon={<Feather name="check-square" size={24} color={COLORS.primary} />}
-                            count="9 New Orders"
-                            title="Manage"
-                            subtitle=""
-                            actionText="Track"
+                            count="9 Comandas Abertas"
+                            title="Mesas"
                         />
                         <CategoryCard
                             icon={<Feather name="alert-triangle" size={24} color={COLORS.primary} />}
-                            count="5 Low Stock"
-                            title="Urgent Items"
-                            subtitle=""
-                            actionText="View"
+                            count="5 Itens com Estoque Baixo"
+                            title="Estoque"
                         />
                     </View>
                 </View>
@@ -169,9 +146,9 @@ const styles = StyleSheet.create({
         marginBottom: 24,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 2,
+        shadowOpacity: 0.05,
+        shadowRadius: 3,
+        elevation: 1,
     },
     insightHeader: {
         flexDirection: 'row',
@@ -188,16 +165,16 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: '#888',
     },
-    insightImage: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-    },
     percentageText: {
         fontSize: 16,
         fontWeight: 'bold',
         color: '#333',
         marginBottom: 8,
+    },
+    trendText: {
+        fontSize: 14,
+        color: '#4CAF50',
+        marginTop: 4,
     },
     progressContainer: {
         marginBottom: 8,
@@ -249,9 +226,9 @@ const styles = StyleSheet.create({
         width: '48%',
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 2,
+        shadowOpacity: 0.05,
+        shadowRadius: 3,
+        elevation: 1,
     },
     categoryTop: {
         flexDirection: 'row',
@@ -265,20 +242,6 @@ const styles = StyleSheet.create({
         borderRadius: 20,
         justifyContent: 'center',
         alignItems: 'center',
-    },
-    avatarGroup: {
-        flexDirection: 'row',
-        position: 'relative',
-        width: 40,
-        height: 24,
-    },
-    avatar: {
-        width: 24,
-        height: 24,
-        borderRadius: 12,
-        position: 'absolute',
-        borderWidth: 1,
-        borderColor: '#fff',
     },
     categoryCount: {
         fontSize: 16,
@@ -298,24 +261,11 @@ const styles = StyleSheet.create({
     },
     categoryBottom: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
+        justifyContent: 'flex-end',
         alignItems: 'center',
-    },
-    progressBar: {
-        height: 4,
-        backgroundColor: '#eee',
-        borderRadius: 2,
-        width: '40%',
+        marginTop: 12,
     },
     actionButton: {
-        backgroundColor: '#f7f7f7',
-        paddingVertical: 4,
-        paddingHorizontal: 12,
-        borderRadius: 8,
-    },
-    actionText: {
-        fontSize: 12,
-        color: COLORS.primary,
-        fontWeight: '600',
+        padding: 2,
     },
 });
