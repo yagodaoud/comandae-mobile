@@ -25,7 +25,7 @@ export const styles = StyleSheet.create({
     fontSize: 42,
     fontWeight: "700",
     fontFamily: "JetBrainsMono-Medium",
-    color: COLORS.primary,
+    color: COLORS.black,
     letterSpacing: 0.5,
     marginBottom: 8,
   },

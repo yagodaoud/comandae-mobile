@@ -32,7 +32,7 @@ export default function Login() {
 
             <View style={styles.brandSection}>
                 <View style={styles.logoContainer}>
-                    <Ionicons name="restaurant" size={32} color={COLORS.primary} />
+                    <Ionicons name="restaurant" size={32} color={COLORS.white} />
                 </View>
                 <Text style={styles.appName}>Comandaê</Text>
                 <Text style={styles.tagline}>Gestão de Restaurantes</Text>
