@@ -72,7 +72,7 @@ export const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
     borderWidth: 1,
-    borderColor: '#DADCE0', // Google's border color
+    borderColor: '#DADCE0',
   },
   googleIconContainer: {
     width: 24,
@@ -83,8 +83,8 @@ export const styles = StyleSheet.create({
   },
   googleButtonText: {
     fontSize: 16,
-    fontWeight: "500", // Google uses medium weight
-    color: "#757575", // Dark gray, closer to Google's text color
+    fontWeight: "500",
+    color: "#757575",
   },
   termsText: {
     textAlign: "center",

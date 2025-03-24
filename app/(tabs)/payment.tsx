@@ -1,13 +1,14 @@
-import { View, Text } from 'react-native'
-import React from 'react'
-import ScreenWrapper from '@/components/ScreenWrapper'
-
-export default function Payment() {
+import Payment from "@/components/Payment";
+import ScreenWrapper from "@/components/ScreenWrapper";
+import { StatusBar } from "react-native";
+export default function Index() {
     return (
         <ScreenWrapper>
-            <View>
-                <Text>Payment Screen</Text>
-            </View>
+            <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
+            <Payment />
         </ScreenWrapper>
-    )
+
+    );
 }
+
+

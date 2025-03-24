@@ -29,7 +29,6 @@ const CategoryCard = ({ icon, title, count, subtitle }) => {
 export default function Home() {
     const insets = useSafeAreaInsets();
 
-    // Calculate bottom padding to account for tab bar height (60) plus any additional safe area
     const bottomPadding = 60 + (Platform.OS === 'ios' ? insets.bottom : 0);
 
     return (
@@ -93,8 +92,8 @@ export default function Home() {
                     <View style={styles.categoryGrid}>
                         <CategoryCard
                             icon={<Feather name="check-square" size={24} color={COLORS.primary} />}
-                            count="9 Comandas Abertas"
-                            title="Mesas"
+                            count="9 Mesas Abertas"
+                            title="Comandas"
                         />
                         <CategoryCard
                             icon={<Feather name="alert-triangle" size={24} color={COLORS.primary} />}

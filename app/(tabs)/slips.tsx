@@ -1,13 +1,14 @@
-import { View, Text } from 'react-native'
-import React from 'react'
-import ScreenWrapper from '@/components/ScreenWrapper'
-
-export default function Slips() {
+import Slips from "@/components/Slips";
+import ScreenWrapper from "@/components/ScreenWrapper";
+import { StatusBar } from "react-native";
+export default function Index() {
     return (
         <ScreenWrapper>
-            <View>
-                <Text>Slips Screen</Text>
-            </View>
+            <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
+            <Slips />
         </ScreenWrapper>
-    )
+
+    );
 }
+
+

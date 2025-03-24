@@ -8,7 +8,6 @@ import { COLORS } from '@/constants/theme';
 export default function TabLayout() {
     const insets = useSafeAreaInsets();
 
-    // Calculate the bottom padding based on device
     const bottomPadding = Platform.OS === 'ios' ? Math.max(insets.bottom, 10) : 10;
 
     return (
@@ -119,7 +118,6 @@ export default function TabLayout() {
     );
 }
 
-// TabBarIcon component to standardize icon display
 const TabBarIcon = ({ children }) => (
     <View style={styles.iconContainer}>
         {children}

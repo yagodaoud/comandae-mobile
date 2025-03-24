@@ -6,7 +6,6 @@ import { COLORS } from '@/constants/theme';
 import TransparentHeader from '@/components/TransparentHeader';
 
 
-// Sample menu data - you'll replace this with your actual data
 const initialCategories = [
     { id: '1', name: 'Entradas', dishCount: 4 },
     { id: '2', name: 'Pratos Principais', dishCount: 6 },
@@ -60,7 +59,6 @@ export default function Cardapio() {
     const [activeCategory, setActiveCategory] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');
 
-    // Calculate bottom padding to account for tab bar height plus any additional safe area
     const bottomPadding = 60 + (Platform.OS === 'ios' ? insets.bottom : 0);
 
     const filteredDishes = activeCategory

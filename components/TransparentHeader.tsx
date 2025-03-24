@@ -7,10 +7,8 @@ import { COLORS } from '@/constants/theme';
 const TransparentHeader = ({ title }) => {
     const pathname = usePathname();
 
-    // Get page name from path
     const getPageName = () => {
         if (!title) {
-            // Map pathname to readable names
             const pageNames = {
                 '/': 'Home',
                 '/stock': 'Estoque',
