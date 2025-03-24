@@ -4,25 +4,46 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { COLORS } from '@/constants/theme';
 import TransparentHeader from '@/components/TransparentHeader';
-const orderData = {
-    id: '1234',
-    table: 'Mesa 5',
-    items: [
-        { id: '1', name: 'Filé Mignon', quantity: 2, price: '62,90', total: '125,80' },
-        { id: '2', name: 'Coca-Cola', quantity: 3, price: '8,90', total: '26,70' },
-        { id: '3', name: 'Batata Frita', quantity: 1, price: '18,90', total: '18,90' },
-        { id: '4', name: 'Pudim', quantity: 2, price: '12,90', total: '25,80' },
-    ],
-    subtotal: '197,20',
-    tax: '19,72',
-    total: '216,92',
-};
+
+const initialComandas = [
+    { id: '1', table: 'Mesa 1', items: 4, total: '124,90', time: '15min', status: 'recent' },
+    { id: '2', table: 'Mesa 3', items: 6, total: '198,50', time: '42min', status: 'medium' },
+    { id: '3', table: 'Mesa 7', items: 8, total: '345,20', time: '1h 12min', status: 'long' },
+    { id: '4', table: 'Mesa 9', items: 2, total: '64,80', time: '7min', status: 'recent' },
+];
+
 const paymentMethods = [
     { id: 'cash', name: 'Dinheiro', icon: 'dollar-sign' },
     { id: 'credit', name: 'Cartão de Crédito', icon: 'credit-card' },
     { id: 'debit', name: 'Cartão de Débito', icon: 'credit-card' },
     { id: 'pix', name: 'PIX', icon: 'smartphone' },
 ];
+
+const SlipCard = ({ table, items, total, time, status, onPress }) => {
+    const getStatusColor = (status) => {
+        switch (status) {
+            case 'recent': return '#4CAF50';
+            case 'medium': return '#FF9800';
+            case 'long': return '#F44336';
+            default: return '#4CAF50';
+        }
+    };
+
+    return (
+        <TouchableOpacity
+            style={[styles.slipCard, { borderLeftColor: getStatusColor(status) }]}
+            onPress={onPress}
+        >
+            <View style={styles.slipHeader}>
+                <Text style={styles.slipTitle}>{table}</Text>
+                <View style={[styles.timeIndicator, { backgroundColor: getStatusColor(status) }]}>
+                    <Text style={styles.timeText}>{time}</Text>
+                </View>
+            </View>
+            <Text style={styles.slipTotal}>Total: R$ {total}</Text>
+        </TouchableOpacity>
+    );
+};
 
 const OrderItem = ({ name, quantity, price, total }) => {
     return (
@@ -35,18 +56,38 @@ const OrderItem = ({ name, quantity, price, total }) => {
         </View>
     );
 };
-
-export default function Payment() {
+export default function Payment({ navigation }) {
     const insets = useSafeAreaInsets();
     const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('credit');
     const [tipPercentage, setTipPercentage] = useState(10);
     const [cashAmount, setCashAmount] = useState('');
-    const [showChangeModal, setShowChangeModal] = useState(false);
+    const [selectedSlip, setSelectedSlip] = useState(null);
+    const [searchQuery, setSearchQuery] = useState('');
 
-    const tipAmount = parseFloat(orderData.total.replace(',', '.')) * (tipPercentage / 100);
+    const [activeOrderStatus, setActiveOrderStatus] = useState('open');
+
+    const filteredComandas = initialComandas.filter(comanda => {
+        const matchesSearch = comanda.table.toLowerCase().includes(searchQuery.toLowerCase());
+        if (activeOrderStatus === 'all') return matchesSearch;
+        return matchesSearch && comanda.status === activeOrderStatus;
+    });
+
+    const generateOrderData = (comanda) => ({
+        id: comanda.id,
+        table: comanda.table,
+        items: [
+            { id: '1', name: 'Item 1', quantity: 1, price: '50,00', total: '50,00' },
+            { id: '2', name: 'Item 2', quantity: 2, price: '25,00', total: '50,00' },
+        ],
+        subtotal: '100,00',
+        tax: '10,00',
+        total: comanda.total,
+    });
+
+    const tipAmount = selectedSlip ? parseFloat(selectedSlip.total.replace(',', '.')) * (tipPercentage / 100) : 0;
     const formattedTipAmount = tipAmount.toFixed(2).replace('.', ',');
 
-    const grandTotal = (parseFloat(orderData.total.replace(',', '.')) + tipAmount).toFixed(2).replace('.', ',');
+    const grandTotal = selectedSlip ? (parseFloat(selectedSlip.total.replace(',', '.')) + tipAmount).toFixed(2).replace('.', ',') : '0,00';
 
     const calculateChange = () => {
         if (!cashAmount) return '0,00';
@@ -54,157 +95,276 @@ export default function Payment() {
         return change > 0 ? change.toFixed(2).replace('.', ',') : '0,00';
     };
 
-    return (
-        <View style={styles.container}>
-            <TransparentHeader
-                title="Pagamento"
-                backButton={true}
-                onBackPress={() => console.log('Navigate back')}
-            />
+    if (selectedSlip) {
+        const orderData = generateOrderData(selectedSlip);
 
-            <View style={styles.orderInfoCard}>
-                <View style={styles.orderHeader}>
-                    <Text style={styles.orderNumber}>Comanda #{orderData.id}</Text>
-                    <Text style={styles.tableNumber}>{orderData.table}</Text>
-                </View>
-            </View>
+        const handleBackPress = () => {
+            if (selectedSlip) {
+                setSelectedSlip(null);
+            } else {
+                navigation.goBack();
+            }
+        };
 
-            <View style={styles.sectionContainer}>
-                <Text style={styles.sectionTitle}>Resumo do Pedido</Text>
-                <View style={styles.orderSummaryCard}>
-                    <FlatList
-                        data={orderData.items}
-                        renderItem={({ item }) => (
-                            <OrderItem
-                                name={item.name}
-                                quantity={item.quantity}
-                                price={item.price}
-                                total={item.total}
-                            />
-                        )}
-                        keyExtractor={item => item.id}
-                        scrollEnabled={false}
-                    />
+        return (
+            <View style={styles.container}>
+                <TransparentHeader
+                    title={selectedSlip ? selectedSlip.table : "Detalhes"}
+                    backButton={true}
+                    onBackPress={handleBackPress}
+                />
 
-                    <View style={styles.divider} />
-
-                    <View style={styles.totalRow}>
-                        <Text style={styles.totalLabel}>Subtotal</Text>
-                        <Text style={styles.totalValue}>R$ {orderData.subtotal}</Text>
-                    </View>
-                    <View style={styles.totalRow}>
-                        <Text style={styles.totalLabel}>Taxa de Serviço (10%)</Text>
-                        <Text style={styles.totalValue}>R$ {orderData.tax}</Text>
-                    </View>
-                    <View style={styles.totalRow}>
-                        <Text style={styles.totalLabel}>Gorjeta ({tipPercentage}%)</Text>
-                        <Text style={styles.totalValue}>R$ {formattedTipAmount}</Text>
-                    </View>
-
-                    <View style={styles.divider} />
-
-                    <View style={styles.grandTotalRow}>
-                        <Text style={styles.grandTotalLabel}>Total</Text>
-                        <Text style={styles.grandTotalValue}>R$ {grandTotal}</Text>
+                <View style={styles.orderInfoCard}>
+                    <View style={styles.orderHeader}>
+                        <Text style={styles.orderNumber}>Comanda #{orderData.id}</Text>
+                        <Text style={styles.tableNumber}>{orderData.table}</Text>
                     </View>
                 </View>
-            </View>
 
-            <View style={styles.sectionContainer}>
-                <Text style={styles.sectionTitle}>Gorjeta</Text>
-                <View style={styles.tipCard}>
-                    <View style={styles.tipButtonsContainer}>
-                        {[0, 5, 10, 15, 20].map((percentage) => (
+                <View style={styles.sectionContainer}>
+                    <Text style={styles.sectionTitle}>Resumo do Pedido</Text>
+                    <View style={styles.orderSummaryCard}>
+                        <FlatList
+                            data={orderData.items}
+                            renderItem={({ item }) => (
+                                <OrderItem
+                                    name={item.name}
+                                    quantity={item.quantity}
+                                    price={item.price}
+                                    total={item.total}
+                                />
+                            )}
+                            keyExtractor={item => item.id}
+                            scrollEnabled={false}
+                        />
+
+                        <View style={styles.divider} />
+
+                        <View style={styles.totalRow}>
+                            <Text style={styles.totalLabel}>Subtotal</Text>
+                            <Text style={styles.totalValue}>R$ {orderData.subtotal}</Text>
+                        </View>
+                        <View style={styles.totalRow}>
+                            <Text style={styles.totalLabel}>Taxa de Serviço (10%)</Text>
+                            <Text style={styles.totalValue}>R$ {orderData.tax}</Text>
+                        </View>
+                        <View style={styles.totalRow}>
+                            <Text style={styles.totalLabel}>Gorjeta ({tipPercentage}%)</Text>
+                            <Text style={styles.totalValue}>R$ {formattedTipAmount}</Text>
+                        </View>
+
+                        <View style={styles.divider} />
+
+                        <View style={styles.grandTotalRow}>
+                            <Text style={styles.grandTotalLabel}>Total</Text>
+                            <Text style={styles.grandTotalValue}>R$ {grandTotal}</Text>
+                        </View>
+                    </View>
+                </View>
+
+                <View style={styles.sectionContainer}>
+                    <Text style={styles.sectionTitle}>Gorjeta</Text>
+                    <View style={styles.tipCard}>
+                        <View style={styles.tipButtonsContainer}>
+                            {[0, 5, 10, 15, 20].map((percentage) => (
+                                <TouchableOpacity
+                                    key={percentage}
+                                    style={[
+                                        styles.tipButton,
+                                        tipPercentage === percentage && styles.tipButtonActive
+                                    ]}
+                                    onPress={() => setTipPercentage(percentage)}
+                                >
+                                    <Text
+                                        style={[
+                                            styles.tipButtonText,
+                                            tipPercentage === percentage && styles.tipButtonTextActive
+                                        ]}
+                                    >
+                                        {percentage}%
+                                    </Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                    </View>
+                </View>
+
+                <View style={styles.sectionContainer}>
+                    <Text style={styles.sectionTitle}>Método de Pagamento</Text>
+                    <View style={styles.paymentMethodsCard}>
+                        {paymentMethods.map((method) => (
                             <TouchableOpacity
-                                key={percentage}
+                                key={method.id}
                                 style={[
-                                    styles.tipButton,
-                                    tipPercentage === percentage && styles.tipButtonActive
+                                    styles.paymentMethodButton,
+                                    selectedPaymentMethod === method.id && styles.paymentMethodActive
                                 ]}
-                                onPress={() => setTipPercentage(percentage)}
+                                onPress={() => setSelectedPaymentMethod(method.id)}
                             >
+                                <Feather
+                                    name={method.icon}
+                                    size={20}
+                                    color={selectedPaymentMethod === method.id ? '#fff' : '#666'}
+                                />
                                 <Text
                                     style={[
-                                        styles.tipButtonText,
-                                        tipPercentage === percentage && styles.tipButtonTextActive
+                                        styles.paymentMethodText,
+                                        selectedPaymentMethod === method.id && styles.paymentMethodTextActive
                                     ]}
                                 >
-                                    {percentage}%
+                                    {method.name}
                                 </Text>
                             </TouchableOpacity>
                         ))}
                     </View>
+
+                    {selectedPaymentMethod === 'cash' && (
+                        <View style={styles.cashInputContainer}>
+                            <Text style={styles.cashInputLabel}>Valor Recebido:</Text>
+                            <View style={styles.cashInputWrapper}>
+                                <Text style={styles.cashPrefix}>R$</Text>
+                                <TextInput
+                                    style={styles.cashInput}
+                                    value={cashAmount}
+                                    onChangeText={setCashAmount}
+                                    keyboardType="numeric"
+                                    placeholder="0,00"
+                                />
+                            </View>
+
+                            {cashAmount && (
+                                <View style={styles.changeContainer}>
+                                    <Text style={styles.changeLabel}>Troco:</Text>
+                                    <Text style={styles.changeValue}>R$ {calculateChange()}</Text>
+                                </View>
+                            )}
+                        </View>
+                    )}
+                </View>
+
+                <View style={[styles.buttonContainer, { bottom: insets.bottom > 0 ? insets.bottom : 16 }]}>
+                    <TouchableOpacity
+                        style={styles.cancelButton}
+                        onPress={() => console.log('Cancel payment')}
+                    >
+                        <Text style={styles.cancelButtonText}>Cancelar</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={styles.confirmButton}
+                        onPress={() => console.log('Confirm payment')}
+                    >
+                        <Text style={styles.confirmButtonText}>Finalizar Pagamento</Text>
+                    </TouchableOpacity>
+                </View>
+
+                <View style={[styles.buttonContainer, { bottom: insets.bottom > 0 ? insets.bottom : 16 }]}>
+                    <TouchableOpacity
+                        style={styles.cancelButton}
+                        onPress={() => setSelectedSlip(null)}
+                    >
+                        <Text style={styles.cancelButtonText}>Voltar</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={styles.confirmButton}
+                        onPress={() => {
+                            console.log('Confirm payment');
+                            setSelectedSlip(null);
+                        }}
+                    >
+                        <Text style={styles.confirmButtonText}>Finalizar Pagamento</Text>
+                    </TouchableOpacity>
                 </View>
             </View>
+        );
+    }
 
-            <View style={styles.sectionContainer}>
-                <Text style={styles.sectionTitle}>Método de Pagamento</Text>
-                <View style={styles.paymentMethodsCard}>
-                    {paymentMethods.map((method) => (
-                        <TouchableOpacity
-                            key={method.id}
-                            style={[
-                                styles.paymentMethodButton,
-                                selectedPaymentMethod === method.id && styles.paymentMethodActive
-                            ]}
-                            onPress={() => setSelectedPaymentMethod(method.id)}
-                        >
-                            <Feather
-                                name={method.icon}
-                                size={20}
-                                color={selectedPaymentMethod === method.id ? '#fff' : '#666'}
-                            />
-                            <Text
-                                style={[
-                                    styles.paymentMethodText,
-                                    selectedPaymentMethod === method.id && styles.paymentMethodTextActive
-                                ]}
-                            >
-                                {method.name}
-                            </Text>
-                        </TouchableOpacity>
-                    ))}
+
+
+
+    return (
+        <View style={styles.container}>
+            <TransparentHeader
+                title="Pagamento"
+                backButton={false}
+            />
+
+            <View style={styles.searchContainer}>
+                <View style={styles.searchInputContainer}>
+                    <Feather name="search" size={18} color="#888" style={styles.searchIcon} />
+                    <TextInput
+                        style={styles.searchInput}
+                        placeholder="Buscar por mesa"
+                        placeholderTextColor="#888"
+                        value={searchQuery}
+                        onChangeText={setSearchQuery}
+                    />
                 </View>
+                <TouchableOpacity
+                    style={styles.addButton}
+                    onPress={() => console.log('Add new comanda')}
+                >
+                    <Feather name="plus" size={20} color="#fff" />
+                </TouchableOpacity>
+            </View>
 
-                {selectedPaymentMethod === 'cash' && (
-                    <View style={styles.cashInputContainer}>
-                        <Text style={styles.cashInputLabel}>Valor Recebido:</Text>
-                        <View style={styles.cashInputWrapper}>
-                            <Text style={styles.cashPrefix}>R$</Text>
-                            <TextInput
-                                style={styles.cashInput}
-                                value={cashAmount}
-                                onChangeText={setCashAmount}
-                                keyboardType="numeric"
-                                placeholder="0,00"
-                            />
-                        </View>
+            <View style={styles.viewToggleContainer}>
+                <TouchableOpacity
+                    style={[styles.viewToggleButton, activeOrderStatus === 'open' && styles.activeViewToggle]}
+                    onPress={() => setActiveOrderStatus('open')}
+                >
+                    <Feather name="clock" size={16} color={activeOrderStatus === 'open' ? '#fff' : '#666'} />
+                    <Text style={[styles.viewToggleText, activeOrderStatus === 'open' && styles.activeViewToggleText]}>
+                        Em Aberto
+                    </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                    style={[styles.viewToggleButton, activeOrderStatus === 'closed' && styles.activeViewToggle]}
+                    onPress={() => setActiveOrderStatus('closed')}
+                >
+                    <Feather name="check-circle" size={16} color={activeOrderStatus === 'closed' ? '#fff' : '#666'} />
+                    <Text style={[styles.viewToggleText, activeOrderStatus === 'closed' && styles.activeViewToggleText]}>
+                        Fechadas
+                    </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                    style={[styles.viewToggleButton, activeOrderStatus === 'all' && styles.activeViewToggle]}
+                    onPress={() => setActiveOrderStatus('all')}
+                >
+                    <Feather name="list" size={16} color={activeOrderStatus === 'all' ? '#fff' : '#666'} />
+                    <Text style={[styles.viewToggleText, activeOrderStatus === 'all' && styles.activeViewToggleText]}>
+                        Todos
+                    </Text>
+                </TouchableOpacity>
+            </View>
 
-                        {cashAmount && (
-                            <View style={styles.changeContainer}>
-                                <Text style={styles.changeLabel}>Troco:</Text>
-                                <Text style={styles.changeValue}>R$ {calculateChange()}</Text>
-                            </View>
-                        )}
+            <ScrollView
+                style={styles.scrollView}
+                contentContainerStyle={{
+                    paddingHorizontal: 16,
+                    paddingBottom: 60 + (Platform.OS === 'ios' ? insets.bottom : 0)
+                }}
+            >
+                {filteredComandas.map(comanda => (
+                    <SlipCard
+                        key={comanda.id}
+                        table={comanda.table}
+                        items={comanda.items}
+                        total={comanda.total}
+                        time={comanda.time}
+                        status={comanda.status}
+                        onPress={() => setSelectedSlip(comanda)}
+                    />
+                ))}
+
+                {filteredComandas.length === 0 && (
+                    <View style={styles.emptyState}>
+                        <Feather name="clipboard" size={48} color="#ccc" />
+                        <Text style={styles.emptyStateText}>Nenhuma comanda encontrada</Text>
                     </View>
                 )}
-            </View>
-
-            <View style={[styles.buttonContainer, { bottom: insets.bottom > 0 ? insets.bottom : 16 }]}>
-                <TouchableOpacity
-                    style={styles.cancelButton}
-                    onPress={() => console.log('Cancel payment')}
-                >
-                    <Text style={styles.cancelButtonText}>Cancelar</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                    style={styles.confirmButton}
-                    onPress={() => console.log('Confirm payment')}
-                >
-                    <Text style={styles.confirmButtonText}>Finalizar Pagamento</Text>
-                </TouchableOpacity>
-            </View>
+            </ScrollView>
         </View>
     );
 }
@@ -213,6 +373,61 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: COLORS.background,
+    },
+    searchContainer: {
+        flexDirection: 'row',
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        backgroundColor: '#fff',
+        borderBottomWidth: 1,
+        borderBottomColor: '#f0f0f0',
+        alignItems: 'center',
+    },
+    searchInputContainer: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#f0f0f0',
+        borderRadius: 8,
+        paddingHorizontal: 12,
+        marginRight: 12,
+    },
+    searchIcon: {
+        marginRight: 8,
+    },
+    searchInput: {
+        flex: 1,
+        height: 40,
+        color: '#333',
+    },
+    viewToggleContainer: {
+        flexDirection: 'row',
+        marginHorizontal: 16,
+        marginTop: 8,
+        marginBottom: 4,
+        borderRadius: 8,
+        overflow: 'hidden',
+        backgroundColor: '#f0f0f0',
+    },
+    viewToggleButton: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 10,
+        backgroundColor: '#f0f0f0',
+    },
+    activeViewToggle: {
+        backgroundColor: COLORS.secondary,
+    },
+    viewToggleText: {
+        marginLeft: 6,
+        fontSize: 14,
+        color: '#666',
+    },
+    activeViewToggleText: {
+        color: '#fff',
+        fontWeight: '500',
     },
     orderInfoCard: {
         margin: 16,
@@ -476,5 +691,52 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: '600',
         color: '#fff',
+    },
+    slipCard: {
+        backgroundColor: '#fff',
+        borderRadius: 12,
+        padding: 16,
+        marginBottom: 12,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+        elevation: 1,
+        borderLeftWidth: 4,
+    },
+    slipHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 8,
+    },
+    slipTitle: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: '#333',
+    },
+    timeIndicator: {
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 12,
+    },
+    timeText: {
+        fontSize: 10,
+        fontWeight: '500',
+        color: '#fff',
+    },
+    slipTotal: {
+        fontSize: 14,
+        color: '#666',
+    },
+    emptyState: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingTop: 64,
+    },
+    emptyStateText: {
+        fontSize: 16,
+        color: '#888',
+        marginTop: 16,
     },
 });

@@ -4,7 +4,7 @@ import { Feather } from '@expo/vector-icons';
 import { usePathname } from 'expo-router';
 import { COLORS } from '@/constants/theme';
 
-const TransparentHeader = ({ title }) => {
+const TransparentHeader = ({ title, backButton = false, onBackPress = () => { } }) => {
     const pathname = usePathname();
 
     const getPageName = () => {
@@ -24,7 +24,17 @@ const TransparentHeader = ({ title }) => {
 
     return (
         <View style={styles.container}>
-            <Text style={styles.title}>{getPageName()}</Text>
+            <View style={styles.leftContainer}>
+                {backButton && (
+                    <TouchableOpacity
+                        style={styles.backButton}
+                        onPress={onBackPress}
+                    >
+                        <Feather name="chevron-left" size={24} color={COLORS.gray} />
+                    </TouchableOpacity>
+                )}
+                <Text style={styles.title}>{getPageName()}</Text>
+            </View>
             <View style={styles.iconContainer}>
                 <TouchableOpacity style={styles.iconButton}>
                     <Feather name="user" size={24} color={COLORS.gray} />
@@ -43,6 +53,13 @@ const styles = StyleSheet.create({
         paddingTop: 20,
         paddingBottom: 10,
         backgroundColor: 'transparent',
+    },
+    leftContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    backButton: {
+        marginRight: 12,
     },
     title: {
         fontSize: 18,
