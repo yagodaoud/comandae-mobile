@@ -19,12 +19,15 @@ const CategoriesSection: React.FC = () => {
                     icon={<Feather name="book" size={24} color={COLORS.primary} />}
                     count="5 Pratos no Menu"
                     title="Cardápio"
+                    screenName="menu-generation"
                 />
                 <CategoryCard
-                    icon={<Feather name="shopping-bag" size={24} color={COLORS.primary} />}
-                    count="2 Novos pedidos"
-                    title="Pedidos"
+                    icon={<Feather name="alert-triangle" size={24} color={COLORS.primary} />}
+                    count="5 Itens com Estoque Baixo"
+                    title="Estoque"
+                    screenName="stock"
                 />
+
             </View>
 
             <View style={styles.categoryGrid}>
@@ -32,11 +35,14 @@ const CategoriesSection: React.FC = () => {
                     icon={<Feather name="check-square" size={24} color={COLORS.primary} />}
                     count="9 Mesas Abertas"
                     title="Comandas"
+                    screenName="slips"
                 />
                 <CategoryCard
-                    icon={<Feather name="alert-triangle" size={24} color={COLORS.primary} />}
-                    count="5 Itens com Estoque Baixo"
-                    title="Estoque"
+                    icon={<Feather name="shopping-bag" size={24} color={COLORS.primary} />}
+                    count="2 Novos pedidos"
+                    title="Pedidos"
+                    screenName="payment"
+                    navigationParams={{ filter: 'open' }}
                 />
             </View>
         </View>

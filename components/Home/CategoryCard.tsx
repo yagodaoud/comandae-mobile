@@ -2,22 +2,45 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { COLORS } from '@/constants/theme';
+import { useNavigation } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
+
+type RootStackParamList = {
+    Payment: { filter?: 'open' | 'closed' | 'all' };
+};
+
+type NavigationProp = StackNavigationProp<RootStackParamList>;
 
 interface CategoryCardProps {
     icon: React.ReactNode;
     count: string;
     title: string;
     subtitle?: string;
+    screenName?: string;
+    navigationParams?: object;
 }
 
 const CategoryCard: React.FC<CategoryCardProps> = ({
     icon,
     count,
     title,
-    subtitle
+    subtitle,
+    screenName,
+    navigationParams = {}
 }) => {
+    const navigation = useNavigation<NavigationProp>();
+    const handlePress = () => {
+        if (screenName) {
+            navigation.navigate(screenName, navigationParams);
+        }
+    };
+
     return (
-        <View style={styles.categoryCard}>
+        <TouchableOpacity
+            style={styles.categoryCard}
+            onPress={handlePress}
+            activeOpacity={0.8}
+        >
             <View style={styles.categoryTop}>
                 <View style={styles.categoryIconContainer}>
                     {icon}
@@ -27,14 +50,11 @@ const CategoryCard: React.FC<CategoryCardProps> = ({
             <Text style={styles.categoryTitle}>{title}</Text>
             {subtitle && <Text style={styles.categorySubtitle}>{subtitle}</Text>}
             <View style={styles.categoryBottom}>
-                <TouchableOpacity style={styles.actionButton}>
-                    <Feather name="chevron-right" size={16} color={COLORS.primary} />
-                </TouchableOpacity>
+                <Feather name="chevron-right" size={16} color={COLORS.primary} />
             </View>
-        </View>
+        </TouchableOpacity>
     );
 };
-
 const styles = StyleSheet.create({
     categoryCard: {
         backgroundColor: '#fff',
