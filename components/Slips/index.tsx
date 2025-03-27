@@ -5,7 +5,7 @@ import { Feather } from '@expo/vector-icons';
 import { COLORS } from '@/constants/theme';
 import TransparentHeader from '@/components/TransparentHeader';
 import { ComandaCard } from './ComandaCard';
-import { SearchBar } from './SearchBar';
+import { SearchBar } from '@/components/SearchBar';
 import { StatsCard } from './StatsCard';
 import { FilterChips } from './FilterChips';
 import { EmptyState } from './EmptyState';

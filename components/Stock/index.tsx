@@ -3,8 +3,7 @@ import { View, ScrollView, Platform, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS } from '@/constants/theme';
 import TransparentHeader from '@/components/TransparentHeader';
-
-import SearchBar from './SearchBar';
+import { SearchBar } from '@/components/SearchBar';
 import StatsCard from './StatsCard';
 import ViewToggle from './ViewToggle';
 import FilterChips from './FilterChips';
