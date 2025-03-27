@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -7,35 +7,37 @@ import TransparentHeader from '@/components/TransparentHeader';
 import { SearchBar } from './SearchBar';
 import { CategoryChip } from './CategoryChip';
 import { DishCard } from './DishCard';
-
-const initialCategories = [
-    { id: '1', name: 'Entradas', dishCount: 4 },
-    { id: '2', name: 'Pratos Principais', dishCount: 6 },
-    { id: '3', name: 'Sobremesas', dishCount: 3 },
-];
-
-const initialDishes = [
-    { id: '1', categoryId: '1', name: 'Bruschetta', price: '18,90', description: 'Tomate, manjericão e alho no pão italiano' },
-    { id: '2', categoryId: '1', name: 'Carpaccio', price: '32,00', description: 'Fatias finas de carne com molho especial' },
-    { id: '3', categoryId: '2', name: 'Risoto de Funghi', price: '45,90', description: 'Arroz arbóreo com cogumelos frescos' },
-    { id: '4', categoryId: '2', name: 'Filé ao Molho Madeira', price: '58,90', description: 'Filé mignon grelhado ao ponto com molho madeira' },
-    { id: '5', categoryId: '3', name: 'Tiramisu', price: '22,90', description: 'Sobremesa italiana com café e mascarpone' },
-];
+import { useQuery } from 'convex/react';
+import { api } from '@/convex/_generated/api';
 
 export default function MenuGeneration() {
     const insets = useSafeAreaInsets();
-    const [categories, setCategories] = useState(initialCategories);
-    const [dishes, setDishes] = useState(initialDishes);
     const [activeCategory, setActiveCategory] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');
 
+    const categories = useQuery(api.menu.getDishCategories) || [];
+    const dishes = useQuery(api.menu.getDishes) || [];
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        if (categories && dishes) {
+            setIsLoading(false);
+        }
+    }, [categories, dishes]);
+
     const bottomPadding = 60 + (Platform.OS === 'ios' ? insets.bottom : 0);
+
+    const transformedCategories = categories.map(category => ({
+        id: category._id,
+        name: category.name,
+        dishCount: dishes.filter(dish => dish.categoryId === category._id).length
+    }));
 
     const filteredDishes = activeCategory
         ? dishes.filter(dish => dish.categoryId === activeCategory)
         : dishes.filter(dish =>
             dish.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            dish.description.toLowerCase().includes(searchQuery.toLowerCase())
+            (dish.description && dish.description.toLowerCase().includes(searchQuery.toLowerCase()))
         );
 
     const handleAddItem = () => {
@@ -45,6 +47,14 @@ export default function MenuGeneration() {
     const handleScanMenu = () => {
         console.log('Scan menu from image');
     };
+
+    if (isLoading) {
+        return (
+            <View style={[styles.container, styles.loadingContainer]}>
+                <Text>Carregando cardápio...</Text>
+            </View>
+        );
+    }
 
     return (
         <View style={styles.container}>
@@ -72,7 +82,7 @@ export default function MenuGeneration() {
                 </View>
 
                 <CategoryChip
-                    categories={categories}
+                    categories={transformedCategories}
                     activeCategory={activeCategory}
                     onCategorySelect={setActiveCategory}
                 />
@@ -85,10 +95,11 @@ export default function MenuGeneration() {
 
                     {filteredDishes.map(dish => (
                         <DishCard
-                            key={dish.id}
+                            key={dish._id}
                             name={dish.name}
-                            price={dish.price}
+                            price={dish.price.toFixed(2).replace('.', ',')}
                             description={dish.description}
+                            emoji={dish.emoji}
                         />
                     ))}
 
@@ -106,6 +117,10 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: COLORS.background,
+    },
+    loadingContainer: {
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     scrollView: {
         flex: 1,
@@ -154,4 +169,4 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: '#888',
     },
-})
+});

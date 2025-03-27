@@ -7,13 +7,14 @@ interface DishCardProps {
     name: string;
     price: string;
     description: string;
+    emoji: string;
 }
 
-export const DishCard = ({ name, price, description }: DishCardProps) => {
+export const DishCard = ({ name, price, description, emoji }: DishCardProps) => {
     return (
         <View style={styles.dishCard}>
             <View style={styles.dishCardHeader}>
-                <Text style={styles.dishName}>{name}</Text>
+                <Text style={styles.dishName}>{emoji} {name}</Text>
                 <Text style={styles.dishPrice}>R$ {price}</Text>
             </View>
             <Text style={styles.dishDescription}>{description}</Text>
