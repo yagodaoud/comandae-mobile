@@ -33,3 +33,16 @@ export const createDish = mutation({
     });
   },
 });
+
+export const createDishCategory = mutation({
+  args: {
+    name: v.string(),
+    order: v.number(),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db.insert("dish_categories", {
+      name: args.name,
+      order: args.order,
+    });
+  },
+});

@@ -10,6 +10,7 @@ import { DishCard } from './DishCard';
 import { useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import AddDishModal from './AddDishModal';
+import AddCategoryModal from './AddCategoryModal';
 
 export default function MenuGeneration() {
     const insets = useSafeAreaInsets();
@@ -21,6 +22,10 @@ export default function MenuGeneration() {
     const [isLoading, setIsLoading] = useState(true);
 
     const [isAddModalVisible, setIsAddModalVisible] = useState(false);
+
+    const [isCategoryModalVisible, setIsCategoryModalVisible] = useState(false);
+
+    const currentMaxOrder = Math.max(...categories.map(c => c.order), 0);
 
     const handleAddItem = () => {
         setIsAddModalVisible(true);
@@ -89,6 +94,7 @@ export default function MenuGeneration() {
                     categories={transformedCategories}
                     activeCategory={activeCategory}
                     onCategorySelect={setActiveCategory}
+                    onAddCategoryPress={() => setIsCategoryModalVisible(true)}
                 />
 
                 <View style={styles.dishesSection}>
@@ -120,6 +126,14 @@ export default function MenuGeneration() {
                 onClose={() => setIsAddModalVisible(false)}
                 onDishAdded={() => {
                 }}
+            />
+
+            <AddCategoryModal
+                visible={isCategoryModalVisible}
+                onClose={() => setIsCategoryModalVisible(false)}
+                onCategoryAdded={() => {
+                }}
+                currentMaxOrder={currentMaxOrder}
             />
         </View>
     );
