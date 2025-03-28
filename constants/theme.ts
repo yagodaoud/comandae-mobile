@@ -9,4 +9,5 @@ export const COLORS = {
     background: 'white',
     surface: '#f2f2f2',
     surfaceLight: '#2A2A2A',
+    error: '#f13a59'
 } as const

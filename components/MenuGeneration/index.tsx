@@ -9,6 +9,7 @@ import { CategoryChip } from './CategoryChip';
 import { DishCard } from './DishCard';
 import { useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
+import AddDishModal from './AddDishModal';
 
 export default function MenuGeneration() {
     const insets = useSafeAreaInsets();
@@ -18,6 +19,13 @@ export default function MenuGeneration() {
     const categories = useQuery(api.menu.getDishCategories) || [];
     const dishes = useQuery(api.menu.getDishes) || [];
     const [isLoading, setIsLoading] = useState(true);
+
+    const [isAddModalVisible, setIsAddModalVisible] = useState(false);
+
+    const handleAddItem = () => {
+        setIsAddModalVisible(true);
+    };
+
 
     useEffect(() => {
         if (categories && dishes) {
@@ -39,10 +47,6 @@ export default function MenuGeneration() {
             dish.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
             (dish.description && dish.description.toLowerCase().includes(searchQuery.toLowerCase()))
         );
-
-    const handleAddItem = () => {
-        console.log('Add new menu item');
-    };
 
     const handleScanMenu = () => {
         console.log('Scan menu from image');
@@ -109,6 +113,14 @@ export default function MenuGeneration() {
                     </TouchableOpacity>
                 </View>
             </ScrollView>
+
+            <AddDishModal
+                visible={isAddModalVisible}
+                categories={categories}
+                onClose={() => setIsAddModalVisible(false)}
+                onDishAdded={() => {
+                }}
+            />
         </View>
     );
 }
