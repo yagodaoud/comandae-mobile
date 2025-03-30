@@ -22,12 +22,29 @@ export default function MenuGeneration() {
     const [isLoading, setIsLoading] = useState(true);
 
     const [isAddModalVisible, setIsAddModalVisible] = useState(false);
+    const [currentEditDish, setCurrentEditDish] = useState(null);
+    const [isEditing, setIsEditing] = useState(false)
 
     const [isCategoryModalVisible, setIsCategoryModalVisible] = useState(false);
 
     const currentMaxOrder = Math.max(...categories.map(c => c.order), 0);
 
     const handleAddItem = () => {
+        setIsEditing(false);
+        setCurrentEditDish(null);
+        setIsAddModalVisible(true);
+    };
+
+    const handleEditDish = (dish) => {
+        setIsEditing(true);
+        setCurrentEditDish({
+            id: dish._id,
+            name: dish.name,
+            description: dish.description,
+            price: dish.price,
+            emoji: dish.emoji,
+            categoryId: dish.categoryId
+        });
         setIsAddModalVisible(true);
     };
 
@@ -106,10 +123,12 @@ export default function MenuGeneration() {
                     {filteredDishes.map(dish => (
                         <DishCard
                             key={dish._id}
+                            id={dish._id}
                             name={dish.name}
                             price={dish.price.toFixed(2).replace('.', ',')}
                             description={dish.description}
                             emoji={dish.emoji}
+                            onEdit={() => handleEditDish(dish)}
                         />
                     ))}
 
@@ -123,9 +142,17 @@ export default function MenuGeneration() {
             <AddDishModal
                 visible={isAddModalVisible}
                 categories={categories}
-                onClose={() => setIsAddModalVisible(false)}
+                onClose={() => {
+                    setIsAddModalVisible(false);
+                    setCurrentEditDish(null);
+                    setIsEditing(false);
+                }}
                 onDishAdded={() => {
                 }}
+                onDishUpdated={() => {
+                }}
+                editDish={currentEditDish}
+                isEditing={isEditing}
             />
 
             <AddCategoryModal

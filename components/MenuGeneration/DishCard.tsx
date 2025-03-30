@@ -8,9 +8,11 @@ interface DishCardProps {
     price: string;
     description: string;
     emoji: string;
+    onEdit: (dish: any) => void;
+    id: string;
 }
 
-export const DishCard = ({ name, price, description, emoji }: DishCardProps) => {
+export const DishCard = ({ name, price, description, emoji, onEdit, id }: DishCardProps) => {
     return (
         <View style={styles.dishCard}>
             <View style={styles.dishCardHeader}>
@@ -18,7 +20,10 @@ export const DishCard = ({ name, price, description, emoji }: DishCardProps) => 
                 <Text style={styles.dishPrice}>R$ {price}</Text>
             </View>
             <Text style={styles.dishDescription}>{description}</Text>
-            <TouchableOpacity style={styles.editButton}>
+            <TouchableOpacity 
+                style={styles.editButton} 
+                onPress={() => onEdit({ id, name, price, description, emoji })}
+            >
                 <Feather name="edit-2" size={16} color={COLORS.primary} />
             </TouchableOpacity>
         </View>

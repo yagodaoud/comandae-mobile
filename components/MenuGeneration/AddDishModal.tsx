@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, Modal, TextInput, TouchableOpacity, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { COLORS } from '@/constants/theme';
@@ -12,22 +12,69 @@ interface Category {
     name: string;
 }
 
+interface DishData {
+    id?: string;
+    name: string;
+    description: string;
+    price: string | number;
+    emoji: string;
+    categoryId?: string;
+}
+
 interface AddDishModalProps {
     visible: boolean;
     categories: Category[];
     onClose: () => void;
     onDishAdded: () => void;
+    onDishUpdated?: () => void;
+    editDish?: DishData | null;
+    isEditing?: boolean;
 }
 
-export default function AddDishModal({ visible, categories, onClose, onDishAdded }: AddDishModalProps) {
+export default function AddDishModal({
+    visible,
+    categories,
+    onClose,
+    onDishAdded,
+    onDishUpdated,
+    editDish = null,
+    isEditing = false
+}: AddDishModalProps) {
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
     const [price, setPrice] = useState('');
     const [selectedEmoji, setSelectedEmoji] = useState('🍕');
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [customEmoji, setCustomEmoji] = useState('');
+    const [emojiInputError, setEmojiInputError] = useState('');
 
     const createDish = useMutation(api.menu.createDish);
+    const updateDish = useMutation(api.menu.updateDish);
+
+    useEffect(() => {
+        if (editDish && isEditing) {
+            setName(editDish.name || '');
+            setDescription(editDish.description || '');
+            setPrice(typeof editDish.price === 'number'
+                ? editDish.price.toFixed(2).replace('.', ',')
+                : editDish.price || '');
+            setSelectedEmoji(editDish.emoji || '🍕');
+            setSelectedCategory(editDish.categoryId || null);
+        } else {
+            resetForm();
+        }
+    }, [editDish, isEditing, visible]);
+
+    const resetForm = () => {
+        setName('');
+        setDescription('');
+        setPrice('');
+        setSelectedEmoji('🍕');
+        setSelectedCategory(null);
+        setCustomEmoji('');
+        setEmojiInputError('');
+    };
 
     const handleSubmit = async () => {
         if (!name || !price || !selectedCategory) {
@@ -37,27 +84,44 @@ export default function AddDishModal({ visible, categories, onClose, onDishAdded
 
         setIsSubmitting(true);
         try {
-            const priceNumber = parseFloat(price.replace(',', '.'));
+            const priceNumber = parseFloat(price.toString().replace(',', '.'));
             if (isNaN(priceNumber)) {
                 throw new Error('Preço inválido');
             }
 
-            await createDish({
+            const dishData = {
                 name,
                 description,
                 price: priceNumber,
                 emoji: selectedEmoji,
                 categoryId: selectedCategory,
-            });
+            };
 
-            onDishAdded();
+            if (isEditing && editDish?.id) {
+                await updateDish({
+                    id: editDish.id,
+                    ...dishData
+                });
+
+                if (onDishUpdated) onDishUpdated();
+            } else {
+                await createDish(dishData);
+                onDishAdded();
+            }
+
             onClose();
+            resetForm();
         } catch (error: any) {
-            console.error('Error creating dish:', error);
-            alert('Erro ao adicionar prato: ' + error.message);
+            console.error(`Error ${isEditing ? 'updating' : 'creating'} dish:`, error);
+            alert(`Erro ao ${isEditing ? 'atualizar' : 'adicionar'} prato: ` + error.message);
         } finally {
             setIsSubmitting(false);
         }
+    };
+
+    const isEmoji = (str: string) => {
+        const regex = /\p{Emoji}/u;
+        return regex.test(str);
     };
 
     const handleEmojiChange = (text: string) => {
@@ -90,7 +154,9 @@ export default function AddDishModal({ visible, categories, onClose, onDishAdded
             >
                 <ScrollView contentContainerStyle={styles.scrollContainer}>
                     <View style={styles.header}>
-                        <Text style={styles.title}>Adicionar Novo Prato</Text>
+                        <Text style={styles.title}>
+                            {isEditing ? 'Editar Prato' : 'Adicionar Novo Prato'}
+                        </Text>
                         <TouchableOpacity onPress={onClose}>
                             <Feather name="x" size={24} color={COLORS.primary} />
                         </TouchableOpacity>
@@ -122,7 +188,7 @@ export default function AddDishModal({ visible, categories, onClose, onDishAdded
                         <Text style={styles.label}>Preço*</Text>
                         <TextInput
                             style={styles.input}
-                            value={price}
+                            value={price.toString()}
                             onChangeText={setPrice}
                             placeholder="Ex: 58,90"
                             keyboardType="decimal-pad"
@@ -176,7 +242,10 @@ export default function AddDishModal({ visible, categories, onClose, onDishAdded
                         disabled={isSubmitting}
                     >
                         <Text style={styles.submitButtonText}>
-                            {isSubmitting ? 'Adicionando...' : 'Adicionar Prato'}
+                            {isSubmitting
+                                ? (isEditing ? 'Atualizando...' : 'Adicionando...')
+                                : (isEditing ? 'Atualizar Prato' : 'Adicionar Prato')
+                            }
                         </Text>
                     </TouchableOpacity>
                 </ScrollView>
