@@ -7,7 +7,7 @@ import TransparentHeader from '@/components/TransparentHeader';
 import { SearchBar } from './SearchBar';
 import { CategoryChip } from './CategoryChip';
 import { DishCard } from './DishCard';
-import { useQuery } from 'convex/react';
+import { useMutation, useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import AddDishModal from './AddDishModal';
 import AddCategoryModal from './AddCategoryModal';
@@ -24,6 +24,7 @@ export default function MenuGeneration() {
     const [isAddModalVisible, setIsAddModalVisible] = useState(false);
     const [currentEditDish, setCurrentEditDish] = useState(null);
     const [isEditing, setIsEditing] = useState(false)
+    const deleteDish = useMutation(api.menu.deleteDish);
 
     const [isCategoryModalVisible, setIsCategoryModalVisible] = useState(false);
 
@@ -47,6 +48,16 @@ export default function MenuGeneration() {
         });
         setIsAddModalVisible(true);
     };
+
+    const handleDeleteDish = async (dishId) => {
+        try {
+            await deleteDish({ id: dishId });
+        } catch (error) {
+            console.error('Error deleting dish:', error);
+            alert('Erro ao excluir o prato. Tente novamente.');
+        }
+    };
+
 
 
     useEffect(() => {
@@ -129,6 +140,7 @@ export default function MenuGeneration() {
                             description={dish.description}
                             emoji={dish.emoji}
                             onEdit={() => handleEditDish(dish)}
+                            onDelete={handleDeleteDish}
                         />
                     ))}
 

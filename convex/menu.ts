@@ -99,3 +99,12 @@ export const updateDish = mutation({
     });
   },
 });
+
+export const deleteDish = mutation({
+  args: {
+    id: v.id("dishes"),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db.delete(args.id);
+  },
+});
