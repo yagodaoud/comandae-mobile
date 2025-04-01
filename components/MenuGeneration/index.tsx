@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { COLORS } from '@/constants/theme';
@@ -12,23 +12,68 @@ import { api } from '@/convex/_generated/api';
 import AddDishModal from './AddDishModal';
 import AddCategoryModal from './AddCategoryModal';
 
+const ITEMS_PER_PAGE = 10; // Number of items to load per page
+
 export default function MenuGeneration() {
     const insets = useSafeAreaInsets();
     const [activeCategory, setActiveCategory] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');
+    const [isLoading, setIsLoading] = useState(true);
+
+    // Pagination states
+    const [skip, setSkip] = useState(0);
+    const [hasMore, setHasMore] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const [dishes, setDishes] = useState([]);
 
     const categories = useQuery(api.menu.getDishCategories) || [];
-    const dishes = useQuery(api.menu.getDishes) || [];
-    const [isLoading, setIsLoading] = useState(true);
+    const paginatedDishes = useQuery(api.dishes.getDishesWithPagination, {
+        limit: ITEMS_PER_PAGE,
+        skip: skip,
+        categoryId: activeCategory,
+        searchQuery: searchQuery
+    }) || [];
 
     const [isAddModalVisible, setIsAddModalVisible] = useState(false);
     const [currentEditDish, setCurrentEditDish] = useState(null);
-    const [isEditing, setIsEditing] = useState(false)
+    const [isEditing, setIsEditing] = useState(false);
     const deleteDish = useMutation(api.menu.deleteDish);
 
     const [isCategoryModalVisible, setIsCategoryModalVisible] = useState(false);
 
     const currentMaxOrder = Math.max(...categories.map(c => c.order), 0);
+
+    // Effect to handle initial data load and pagination
+    useEffect(() => {
+        if (paginatedDishes.length > 0) {
+            if (skip === 0) {
+                // First page load
+                setDishes(paginatedDishes);
+            } else {
+                // Subsequent page loads - append new items
+                setDishes(prevDishes => [...prevDishes, ...paginatedDishes]);
+            }
+            setHasMore(paginatedDishes.length === ITEMS_PER_PAGE);
+            setLoadingMore(false);
+            setIsLoading(false);
+        } else if (skip === 0) {
+            // Empty results on first page
+            setDishes([]);
+            setHasMore(false);
+            setIsLoading(false);
+        } else if (paginatedDishes.length === 0) {
+            // No more items to load
+            setHasMore(false);
+            setLoadingMore(false);
+        }
+    }, [paginatedDishes, skip]);
+
+    // Reset pagination when filters change
+    useEffect(() => {
+        setSkip(0);
+        setHasMore(true);
+        setIsLoading(true);
+    }, [activeCategory, searchQuery]);
 
     const handleAddItem = () => {
         setIsEditing(false);
@@ -52,19 +97,35 @@ export default function MenuGeneration() {
     const handleDeleteDish = async (dishId) => {
         try {
             await deleteDish({ id: dishId });
+            // Remove from local state for immediate UI update
+            setDishes(prevDishes => prevDishes.filter(dish => dish._id !== dishId));
         } catch (error) {
             console.error('Error deleting dish:', error);
             alert('Erro ao excluir o prato. Tente novamente.');
         }
     };
 
-
-
-    useEffect(() => {
-        if (categories && dishes) {
-            setIsLoading(false);
+    const handleLoadMore = useCallback(() => {
+        if (hasMore && !loadingMore) {
+            setLoadingMore(true);
+            setSkip(prevSkip => prevSkip + ITEMS_PER_PAGE);
         }
-    }, [categories, dishes]);
+    }, [hasMore, loadingMore]);
+
+    // Handle scroll events to detect when to load more
+    const handleScroll = useCallback(({ nativeEvent }) => {
+        const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
+        const paddingToBottom = 20; // How far from the bottom to trigger loading more
+
+        if (layoutMeasurement.height + contentOffset.y >=
+            contentSize.height - paddingToBottom && !loadingMore && hasMore) {
+            handleLoadMore();
+        }
+    }, [handleLoadMore, loadingMore, hasMore]);
+
+    const handleScanMenu = () => {
+        console.log('Scan menu from image');
+    };
 
     const bottomPadding = 60 + (Platform.OS === 'ios' ? insets.bottom : 0);
 
@@ -74,21 +135,11 @@ export default function MenuGeneration() {
         dishCount: dishes.filter(dish => dish.categoryId === category._id).length
     }));
 
-    const filteredDishes = activeCategory
-        ? dishes.filter(dish => dish.categoryId === activeCategory)
-        : dishes.filter(dish =>
-            dish.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            (dish.description && dish.description.toLowerCase().includes(searchQuery.toLowerCase()))
-        );
-
-    const handleScanMenu = () => {
-        console.log('Scan menu from image');
-    };
-
     if (isLoading) {
         return (
             <View style={[styles.container, styles.loadingContainer]}>
                 <Text>Carregando cardápio...</Text>
+                <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 16 }} />
             </View>
         );
     }
@@ -108,6 +159,8 @@ export default function MenuGeneration() {
                 style={styles.scrollView}
                 contentContainerStyle={{ paddingBottom: bottomPadding }}
                 showsVerticalScrollIndicator={false}
+                onScroll={handleScroll}
+                scrollEventThrottle={16} // Increase responsiveness of scroll events
             >
                 <View style={styles.sectionHeader}>
                     <Text style={styles.sectionTitle}>Categorias</Text>
@@ -128,21 +181,36 @@ export default function MenuGeneration() {
                 <View style={styles.dishesSection}>
                     <View style={styles.sectionHeader}>
                         <Text style={styles.sectionTitle}>Itens do Cardápio</Text>
-                        <Text style={styles.itemCount}>{filteredDishes.length} itens</Text>
+                        <Text style={styles.itemCount}>{dishes.length} itens</Text>
                     </View>
 
-                    {filteredDishes.map(dish => (
-                        <DishCard
-                            key={dish._id}
-                            id={dish._id}
-                            name={dish.name}
-                            price={dish.price.toFixed(2).replace('.', ',')}
-                            description={dish.description}
-                            emoji={dish.emoji}
-                            onEdit={() => handleEditDish(dish)}
-                            onDelete={handleDeleteDish}
-                        />
-                    ))}
+                    {dishes.length > 0 ? (
+                        dishes.map(dish => (
+                            <DishCard
+                                key={dish._id}
+                                id={dish._id}
+                                name={dish.name}
+                                price={dish.price.toFixed(2).replace('.', ',')}
+                                description={dish.description}
+                                emoji={dish.emoji}
+                                onEdit={() => handleEditDish(dish)}
+                                onDelete={handleDeleteDish}
+                            />
+                        ))
+                    ) : (
+                        <View style={styles.emptyState}>
+                            <Text style={styles.emptyStateText}>
+                                {searchQuery ? 'Nenhum item encontrado para essa busca.' : 'Sem itens no cardápio.'}
+                            </Text>
+                        </View>
+                    )}
+
+                    {loadingMore && (
+                        <View style={styles.loadingMoreContainer}>
+                            <ActivityIndicator size="small" color={COLORS.primary} />
+                            <Text style={styles.loadingMoreText}>Carregando mais itens...</Text>
+                        </View>
+                    )}
 
                     <TouchableOpacity style={styles.addDishButton} onPress={handleAddItem}>
                         <Feather name="plus" size={18} color="#fff" />
@@ -160,8 +228,14 @@ export default function MenuGeneration() {
                     setIsEditing(false);
                 }}
                 onDishAdded={() => {
+                    // Reset to first page to see new dish
+                    setSkip(0);
+                    setHasMore(true);
                 }}
                 onDishUpdated={() => {
+                    // Reset to first page to see updated dish
+                    setSkip(0);
+                    setHasMore(true);
                 }}
                 editDish={currentEditDish}
                 isEditing={isEditing}
@@ -170,8 +244,7 @@ export default function MenuGeneration() {
             <AddCategoryModal
                 visible={isCategoryModalVisible}
                 onClose={() => setIsCategoryModalVisible(false)}
-                onCategoryAdded={() => {
-                }}
+                onCategoryAdded={() => { }}
                 currentMaxOrder={currentMaxOrder}
             />
         </View>
@@ -233,5 +306,24 @@ const styles = StyleSheet.create({
     itemCount: {
         fontSize: 14,
         color: '#888',
+    },
+    emptyState: {
+        padding: 32,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    emptyStateText: {
+        color: '#888',
+        textAlign: 'center',
+    },
+    loadingMoreContainer: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingVertical: 16,
+    },
+    loadingMoreText: {
+        marginLeft: 8,
+        color: '#666',
     },
 });
