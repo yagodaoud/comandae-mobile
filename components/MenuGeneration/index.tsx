@@ -12,7 +12,7 @@ import { api } from '@/convex/_generated/api';
 import AddDishModal from './AddDishModal';
 import AddCategoryModal from './AddCategoryModal';
 
-const ITEMS_PER_PAGE = 10; // Number of items to load per page
+const ITEMS_PER_PAGE = 10;
 
 export default function MenuGeneration() {
     const insets = useSafeAreaInsets();
@@ -20,7 +20,6 @@ export default function MenuGeneration() {
     const [searchQuery, setSearchQuery] = useState('');
     const [isLoading, setIsLoading] = useState(true);
 
-    // Pagination states
     const [skip, setSkip] = useState(0);
     const [hasMore, setHasMore] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
@@ -34,6 +33,11 @@ export default function MenuGeneration() {
         searchQuery: searchQuery
     }) || [];
 
+    const totalDishCount = useQuery(api.dishes.getDishesCount, {
+        categoryId: activeCategory,
+        searchQuery: searchQuery
+    }) || 0;
+
     const [isAddModalVisible, setIsAddModalVisible] = useState(false);
     const [currentEditDish, setCurrentEditDish] = useState(null);
     const [isEditing, setIsEditing] = useState(false);
@@ -43,32 +47,26 @@ export default function MenuGeneration() {
 
     const currentMaxOrder = Math.max(...categories.map(c => c.order), 0);
 
-    // Effect to handle initial data load and pagination
     useEffect(() => {
         if (paginatedDishes.length > 0) {
             if (skip === 0) {
-                // First page load
                 setDishes(paginatedDishes);
             } else {
-                // Subsequent page loads - append new items
                 setDishes(prevDishes => [...prevDishes, ...paginatedDishes]);
             }
             setHasMore(paginatedDishes.length === ITEMS_PER_PAGE);
             setLoadingMore(false);
             setIsLoading(false);
         } else if (skip === 0) {
-            // Empty results on first page
             setDishes([]);
             setHasMore(false);
             setIsLoading(false);
         } else if (paginatedDishes.length === 0) {
-            // No more items to load
             setHasMore(false);
             setLoadingMore(false);
         }
     }, [paginatedDishes, skip]);
 
-    // Reset pagination when filters change
     useEffect(() => {
         setSkip(0);
         setHasMore(true);
@@ -97,7 +95,6 @@ export default function MenuGeneration() {
     const handleDeleteDish = async (dishId) => {
         try {
             await deleteDish({ id: dishId });
-            // Remove from local state for immediate UI update
             setDishes(prevDishes => prevDishes.filter(dish => dish._id !== dishId));
         } catch (error) {
             console.error('Error deleting dish:', error);
@@ -112,11 +109,9 @@ export default function MenuGeneration() {
         }
     }, [hasMore, loadingMore]);
 
-    // Handle scroll events to detect when to load more
     const handleScroll = useCallback(({ nativeEvent }) => {
         const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
-        const paddingToBottom = 20; // How far from the bottom to trigger loading more
-
+        const paddingToBottom = 20;
         if (layoutMeasurement.height + contentOffset.y >=
             contentSize.height - paddingToBottom && !loadingMore && hasMore) {
             handleLoadMore();
@@ -144,6 +139,10 @@ export default function MenuGeneration() {
         );
     }
 
+    const itemCountDisplay = dishes.length === totalDishCount
+        ? `${totalDishCount} itens`
+        : `${dishes.length} de ${totalDishCount} itens`;
+
     return (
         <View style={styles.container}>
             <TransparentHeader title="Cardápio" />
@@ -160,7 +159,7 @@ export default function MenuGeneration() {
                 contentContainerStyle={{ paddingBottom: bottomPadding }}
                 showsVerticalScrollIndicator={false}
                 onScroll={handleScroll}
-                scrollEventThrottle={16} // Increase responsiveness of scroll events
+                scrollEventThrottle={16}
             >
                 <View style={styles.sectionHeader}>
                     <Text style={styles.sectionTitle}>Categorias</Text>
@@ -181,7 +180,7 @@ export default function MenuGeneration() {
                 <View style={styles.dishesSection}>
                     <View style={styles.sectionHeader}>
                         <Text style={styles.sectionTitle}>Itens do Cardápio</Text>
-                        <Text style={styles.itemCount}>{dishes.length} itens</Text>
+                        <Text style={styles.itemCount}>{itemCountDisplay}</Text>
                     </View>
 
                     {dishes.length > 0 ? (
@@ -228,12 +227,10 @@ export default function MenuGeneration() {
                     setIsEditing(false);
                 }}
                 onDishAdded={() => {
-                    // Reset to first page to see new dish
                     setSkip(0);
                     setHasMore(true);
                 }}
                 onDishUpdated={() => {
-                    // Reset to first page to see updated dish
                     setSkip(0);
                     setHasMore(true);
                 }}

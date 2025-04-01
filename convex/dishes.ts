@@ -1,7 +1,6 @@
 import { query } from "./_generated/server";
 import { v } from "convex/values";
 
-// Add this function to your menu.js in the convex folder
 
 export const getDishesWithPagination = query({
     args: {
@@ -13,15 +12,20 @@ export const getDishesWithPagination = query({
     handler: async (ctx, args) => {
         const { limit, skip, categoryId, searchQuery = "" } = args;
 
-        // Initialize the query with the index if filtering by category
+        const categories = await ctx.db.query("dish_categories").collect();
+
+        const categoryOrderMap: Record<string, number> = {};
+
+        categories.forEach(category => {
+            categoryOrderMap[category._id.toString()] = category.order;
+        });
+
         let dishesQuery = categoryId
             ? ctx.db.query("dishes").withIndex("by_category", q => q.eq("categoryId", categoryId))
             : ctx.db.query("dishes");
 
-        // Get all results that match the filters
         let dishes = await dishesQuery.collect();
 
-        // Apply search filter if provided
         if (searchQuery) {
             dishes = dishes.filter(dish =>
                 dish.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -29,10 +33,42 @@ export const getDishesWithPagination = query({
             );
         }
 
-        // Sort by creation time (newest first)
-        dishes.sort((a, b) => b._creationTime - a._creationTime);
+        dishes.sort((a, b) => {
+            const orderA = categoryOrderMap[a.categoryId.toString()] ?? Number.MAX_SAFE_INTEGER;
+            const orderB = categoryOrderMap[b.categoryId.toString()] ?? Number.MAX_SAFE_INTEGER;
 
-        // Apply pagination
+            if (orderA !== orderB) {
+                return orderA - orderB;
+            }
+
+            return b._creationTime - a._creationTime;
+        });
+
         return dishes.slice(skip, skip + limit);
+    }
+});
+
+export const getDishesCount = query({
+    args: {
+        categoryId: v.optional(v.union(v.id("dish_categories"), v.null())),
+        searchQuery: v.optional(v.string())
+    },
+    handler: async (ctx, args) => {
+        const { categoryId, searchQuery = "" } = args;
+
+        let dishesQuery = categoryId
+            ? ctx.db.query("dishes").withIndex("by_category", q => q.eq("categoryId", categoryId))
+            : ctx.db.query("dishes");
+
+        let dishes = await dishesQuery.collect();
+
+        if (searchQuery) {
+            dishes = dishes.filter(dish =>
+                dish.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                (dish.description && dish.description.toLowerCase().includes(searchQuery.toLowerCase()))
+            );
+        }
+
+        return dishes.length;
     }
 });
