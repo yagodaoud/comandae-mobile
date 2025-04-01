@@ -15,7 +15,7 @@ export default defineSchema({
         _creationTime: v.number(),
         name: v.string(),
         order: v.number(),
-    }).index("by_name", ["name"]),
+    }).index("by_order", ["order"]),
 
     dishes: defineTable({
         _creationTime: v.number(),
@@ -23,6 +23,7 @@ export default defineSchema({
         description: v.string(),
         price: v.number(),
         emoji: v.string(),
+        isFavorite: v.boolean(),
         categoryId: v.id("dish_categories"),
     }).index("by_category", ["categoryId"]),
 

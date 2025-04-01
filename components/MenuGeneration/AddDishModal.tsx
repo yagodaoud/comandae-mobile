@@ -48,6 +48,7 @@ export default function AddDishModal({
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [customEmoji, setCustomEmoji] = useState('');
     const [emojiInputError, setEmojiInputError] = useState('');
+    const [isFavorite, setIsFavorite] = useState(false);
 
     const createDish = useMutation(api.menu.createDish);
     const updateDish = useMutation(api.menu.updateDish);
@@ -74,6 +75,7 @@ export default function AddDishModal({
         setSelectedCategory(null);
         setCustomEmoji('');
         setEmojiInputError('');
+        setIsFavorite(false);
     };
 
     const handleSubmit = async () => {
@@ -94,6 +96,7 @@ export default function AddDishModal({
                 description,
                 price: priceNumber,
                 emoji: selectedEmoji,
+                isFavorite: isFavorite,
                 categoryId: selectedCategory,
             };
 

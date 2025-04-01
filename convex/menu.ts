@@ -4,6 +4,7 @@ import { v } from "convex/values";
 export const getDishCategories = query({
   handler: async (ctx) => {
     return await ctx.db.query('dish_categories')
+      .withIndex("by_order")
       .order('asc')
       .collect();
   },
@@ -11,7 +12,10 @@ export const getDishCategories = query({
 
 export const getDishes = query({
   handler: async (ctx) => {
-    return await ctx.db.query('dishes').collect();
+    return await ctx.db.query('dishes')
+      .withIndex("by_category")
+      .order('asc')
+      .collect();
   },
 });
 
@@ -21,6 +25,7 @@ export const createDish = mutation({
     description: v.string(),
     price: v.number(),
     emoji: v.string(),
+    isFavorite: v.boolean(),
     categoryId: v.id("dish_categories"),
   },
   handler: async (ctx, args) => {
@@ -29,6 +34,7 @@ export const createDish = mutation({
       description: args.description,
       price: args.price,
       emoji: args.emoji,
+      isFavorite: args.isFavorite || false,
       categoryId: args.categoryId,
     });
   },
