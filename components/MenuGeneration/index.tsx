@@ -87,6 +87,7 @@ export default function MenuGeneration() {
             description: dish.description,
             price: dish.price,
             emoji: dish.emoji,
+            isFavorite: dish.isFavorite,
             categoryId: dish.categoryId
         });
         setIsAddModalVisible(true);
@@ -192,6 +193,7 @@ export default function MenuGeneration() {
                                 price={dish.price.toFixed(2).replace('.', ',')}
                                 description={dish.description}
                                 emoji={dish.emoji}
+                                isFavorite={dish.isFavorite}
                                 onEdit={() => handleEditDish(dish)}
                                 onDelete={handleDeleteDish}
                             />

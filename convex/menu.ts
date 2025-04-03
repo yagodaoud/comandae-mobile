@@ -93,6 +93,7 @@ export const updateDish = mutation({
     description: v.string(),
     price: v.number(),
     emoji: v.string(),
+    isFavorite: v.boolean(),
     categoryId: v.id("dish_categories"),
   },
   handler: async (ctx, args) => {
@@ -101,6 +102,7 @@ export const updateDish = mutation({
       description: args.description,
       price: args.price,
       emoji: args.emoji,
+      isFavorite: args.isFavorite,
       categoryId: args.categoryId,
     });
   },

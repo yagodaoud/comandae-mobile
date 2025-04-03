@@ -19,6 +19,7 @@ interface DishData {
     price: string | number;
     emoji: string;
     categoryId?: string;
+    isFavorite?: boolean;
 }
 
 interface AddDishModalProps {
@@ -62,6 +63,7 @@ export default function AddDishModal({
                 : editDish.price || '');
             setSelectedEmoji(editDish.emoji || '🍕');
             setSelectedCategory(editDish.categoryId || null);
+            setIsFavorite(editDish.isFavorite || false);
         } else {
             resetForm();
         }
@@ -239,6 +241,28 @@ export default function AddDishModal({
                         </ScrollView>
                     </View>
 
+                    <View style={styles.formGroup}>
+                        <TouchableOpacity
+                            style={styles.favoriteToggle}
+                            onPress={() => setIsFavorite(!isFavorite)}
+                        >
+                            <View style={[
+                                styles.checkboxContainer,
+                                isFavorite && styles.checkboxSelected
+                            ]}>
+                                {isFavorite && (
+                                    <Feather name="check" size={16} color="#fff" />
+                                )}
+                            </View>
+                            <Text style={styles.favoriteText}>
+                                Marcar como favorito
+                            </Text>
+                            {isFavorite && (
+                                <Feather name="star" size={20} color="#FFD700" style={styles.starIcon} />
+                            )}
+                        </TouchableOpacity>
+                    </View>
+
                     <TouchableOpacity
                         style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
                         onPress={handleSubmit}
@@ -341,6 +365,32 @@ const styles = StyleSheet.create({
     selectedEmojiContainer: {
         alignItems: 'center',
         marginBottom: 12,
+    },
+    favoriteToggle: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 8,
+    },
+    checkboxContainer: {
+        width: 24,
+        height: 24,
+        borderWidth: 1,
+        borderColor: '#ddd',
+        borderRadius: 4,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 10,
+    },
+    checkboxSelected: {
+        backgroundColor: COLORS.secondary,
+        borderColor: COLORS.secondary,
+    },
+    favoriteText: {
+        fontSize: 16,
+        color: '#555',
+    },
+    starIcon: {
+        marginLeft: 8,
     },
     submitButton: {
         backgroundColor: COLORS.secondary,

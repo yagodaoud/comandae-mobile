@@ -11,10 +11,19 @@ interface DishCardProps {
     onEdit: (dish: any) => void;
     onDelete: (id: string) => void;
     id: string;
+    isFavorite?: boolean;
 }
 
-export const DishCard = ({ name, price, description, emoji, onEdit, onDelete, id }: DishCardProps) => {
-
+export const DishCard = ({
+    name,
+    price,
+    description,
+    emoji,
+    onEdit,
+    onDelete,
+    id,
+    isFavorite = false
+}: DishCardProps) => {
     const handleDelete = () => {
         Alert.alert(
             "Confirmar exclusão",
@@ -36,14 +45,21 @@ export const DishCard = ({ name, price, description, emoji, onEdit, onDelete, id
     return (
         <View style={styles.dishCard}>
             <View style={styles.dishCardHeader}>
-                <Text style={styles.dishName}>{emoji} {name}</Text>
+                <View style={styles.nameContainer}>
+                    <Text style={styles.dishName}>{emoji} {name}</Text>
+                    {isFavorite && (
+                        <View style={styles.favoriteIcon}>
+                            <Feather name="star" size={16} color="#FFD700" />
+                        </View>
+                    )}
+                </View>
                 <Text style={styles.dishPrice}>R$ {price}</Text>
             </View>
             <Text style={styles.dishDescription}>{description}</Text>
             <View style={styles.actionsContainer}>
                 <TouchableOpacity
                     style={styles.editButton}
-                    onPress={() => onEdit({ id, name, price, description, emoji })}
+                    onPress={() => onEdit({ id, name, price, description, emoji, isFavorite })}
                 >
                     <Feather name="edit-2" size={16} color={COLORS.primary} />
                 </TouchableOpacity>
@@ -78,11 +94,18 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginBottom: 4,
     },
+    nameContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flex: 1,
+    },
     dishName: {
         fontSize: 16,
         fontWeight: 'bold',
         color: '#333',
-        flex: 1,
+    },
+    favoriteIcon: {
+        marginLeft: 8,
     },
     dishPrice: {
         fontSize: 16,
@@ -114,4 +137,4 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
     }
-})
+});
