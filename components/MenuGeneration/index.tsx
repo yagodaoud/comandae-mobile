@@ -9,7 +9,7 @@ import { CategoryChip } from './CategoryChip';
 import { DishCard } from './DishCard';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
-import AddDishModal from './AddDishModal';
+import AddDishModal from './AddDishModal/AddDishModal';
 import AddCategoryModal from './AddCategoryModal';
 
 const ITEMS_PER_PAGE = 10;
