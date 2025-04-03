@@ -8,7 +8,7 @@ import { api } from '@/convex/_generated/api';
 import { FormField } from './FormField';
 import { EmojiSelector } from './EmojiSelector';
 import { CategorySelector } from './CategorySelector';
-import { Checkbox } from './CheckBox';
+import { Checkbox } from './Checkbox';
 import { Button } from './Button';
 import { ModalHeader } from './ModalHeader';
 import { useDishForm } from './useDishForm';
