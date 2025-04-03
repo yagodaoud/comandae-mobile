@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { COLORS } from '@/constants/theme';
 
@@ -8,13 +8,24 @@ interface SearchBarProps {
     onSearchChange: (query: string) => void;
     onAddItem: () => void;
     onScanMenu: () => void;
+    isSearching?: boolean;
 }
 
-export const SearchBar = ({ searchQuery, onSearchChange, onAddItem, onScanMenu }: SearchBarProps) => {
+export const SearchBar = ({
+    searchQuery,
+    onSearchChange,
+    onAddItem,
+    onScanMenu,
+    isSearching = false
+}: SearchBarProps) => {
     return (
         <View style={styles.searchContainer}>
             <View style={styles.searchInputContainer}>
-                <Feather name="search" size={18} color="#888" style={styles.searchIcon} />
+                {isSearching ? (
+                    <ActivityIndicator size="small" color={COLORS.primary} style={styles.searchIcon} />
+                ) : (
+                    <Feather name="search" size={18} color="#888" style={styles.searchIcon} />
+                )}
                 <TextInput
                     style={styles.searchInput}
                     placeholder="Buscar item no cardápio"
@@ -65,6 +76,10 @@ const styles = StyleSheet.create({
     },
     searchIcon: {
         marginRight: 8,
+        width: 18,
+        height: 18,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     searchInput: {
         flex: 1,
@@ -79,4 +94,4 @@ const styles = StyleSheet.create({
         backgroundColor: COLORS.secondary,
         borderRadius: 8,
     },
-})
+});

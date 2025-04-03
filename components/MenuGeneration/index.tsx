@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList, Platform, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { COLORS } from '@/constants/theme';
@@ -19,11 +19,15 @@ export default function MenuGeneration() {
     const [activeCategory, setActiveCategory] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [isLoading, setIsLoading] = useState(true);
+    const [isSearching, setIsSearching] = useState(false);
 
     const [skip, setSkip] = useState(0);
     const [hasMore, setHasMore] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
     const [dishes, setDishes] = useState([]);
+
+    const shouldResetDishes = useRef(false);
+    const searchTimeout = useRef(null);
 
     const categories = useQuery(api.menu.getDishCategories) || [];
     const paginatedDishes = useQuery(api.dishes.getDishesWithPagination, {
@@ -48,17 +52,46 @@ export default function MenuGeneration() {
     const currentMaxOrder = Math.max(...categories.map(c => c.order), 0);
 
     useEffect(() => {
+        shouldResetDishes.current = true;
+        setSkip(0);
+        setHasMore(true);
+        setIsLoading(true);
+    }, [activeCategory]);
+
+    const handleSearchChange = (query) => {
+        setIsSearching(true);
+
+        if (searchTimeout.current) {
+            clearTimeout(searchTimeout.current);
+        }
+
+        setSearchQuery(query);
+
+        searchTimeout.current = setTimeout(() => {
+            shouldResetDishes.current = true;
+            setSkip(0);
+            setHasMore(true);
+
+            setTimeout(() => {
+                setIsSearching(false);
+            }, 300);
+        }, 500);
+    };
+
+    useEffect(() => {
         if (paginatedDishes.length > 0) {
-            if (skip === 0) {
+            if (skip === 0 || shouldResetDishes.current) {
                 setDishes(paginatedDishes);
+                shouldResetDishes.current = false;
+                setIsLoading(false);
             } else {
                 setDishes(prevDishes => [...prevDishes, ...paginatedDishes]);
             }
             setHasMore(paginatedDishes.length === ITEMS_PER_PAGE);
             setLoadingMore(false);
-            setIsLoading(false);
-        } else if (skip === 0) {
+        } else if (skip === 0 || shouldResetDishes.current) {
             setDishes([]);
+            shouldResetDishes.current = false;
             setHasMore(false);
             setIsLoading(false);
         } else if (paginatedDishes.length === 0) {
@@ -66,12 +99,6 @@ export default function MenuGeneration() {
             setLoadingMore(false);
         }
     }, [paginatedDishes, skip]);
-
-    useEffect(() => {
-        setSkip(0);
-        setHasMore(true);
-        setIsLoading(true);
-    }, [activeCategory, searchQuery]);
 
     const handleAddItem = () => {
         setIsEditing(false);
@@ -110,15 +137,6 @@ export default function MenuGeneration() {
         }
     }, [hasMore, loadingMore]);
 
-    const handleScroll = useCallback(({ nativeEvent }) => {
-        const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
-        const paddingToBottom = 20;
-        if (layoutMeasurement.height + contentOffset.y >=
-            contentSize.height - paddingToBottom && !loadingMore && hasMore) {
-            handleLoadMore();
-        }
-    }, [handleLoadMore, loadingMore, hasMore]);
-
     const handleScanMenu = () => {
         console.log('Scan menu from image');
     };
@@ -130,6 +148,43 @@ export default function MenuGeneration() {
         name: category.name,
         dishCount: dishes.filter(dish => dish.categoryId === category._id).length
     }));
+
+    const renderDishItem = useCallback(({ item }) => (
+        <DishCard
+            key={item._id}
+            id={item._id}
+            name={item.name}
+            price={item.price.toFixed(2).replace('.', ',')}
+            description={item.description}
+            emoji={item.emoji}
+            isFavorite={item.isFavorite}
+            onEdit={() => handleEditDish(item)}
+            onDelete={handleDeleteDish}
+        />
+    ), []);
+
+    const ListEmptyComponent = useCallback(() => (
+        <View style={styles.emptyState}>
+            <Text style={styles.emptyStateText}>
+                {searchQuery ? 'Nenhum item encontrado para essa busca.' : 'Sem itens no cardápio.'}
+            </Text>
+        </View>
+    ), [searchQuery]);
+
+    const ListFooterComponent = useCallback(() => (
+        <>
+            {loadingMore && (
+                <View style={styles.loadingMoreContainer}>
+                    <ActivityIndicator size="small" color={COLORS.primary} />
+                    <Text style={styles.loadingMoreText}>Carregando mais itens...</Text>
+                </View>
+            )}
+            <TouchableOpacity style={styles.addDishButton} onPress={handleAddItem}>
+                <Feather name="plus" size={18} color="#fff" />
+                <Text style={styles.addDishText}>Adicionar Item</Text>
+            </TouchableOpacity>
+        </>
+    ), [loadingMore, handleAddItem]);
 
     if (isLoading) {
         return (
@@ -150,18 +205,13 @@ export default function MenuGeneration() {
 
             <SearchBar
                 searchQuery={searchQuery}
-                onSearchChange={setSearchQuery}
+                onSearchChange={handleSearchChange}
                 onAddItem={handleAddItem}
                 onScanMenu={handleScanMenu}
+                isSearching={isSearching}
             />
 
-            <ScrollView
-                style={styles.scrollView}
-                contentContainerStyle={{ paddingBottom: bottomPadding }}
-                showsVerticalScrollIndicator={false}
-                onScroll={handleScroll}
-                scrollEventThrottle={16}
-            >
+            <View style={styles.categoriesContainer}>
                 <View style={styles.sectionHeader}>
                     <Text style={styles.sectionTitle}>Categorias</Text>
                     <TouchableOpacity onPress={() => setActiveCategory(null)}>
@@ -171,54 +221,48 @@ export default function MenuGeneration() {
                     </TouchableOpacity>
                 </View>
 
-                <CategoryChip
-                    categories={transformedCategories}
-                    activeCategory={activeCategory}
-                    onCategorySelect={setActiveCategory}
-                    onAddCategoryPress={() => setIsCategoryModalVisible(true)}
-                />
+                <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.categoryScrollContent}
+                >
+                    <CategoryChip
+                        categories={transformedCategories}
+                        activeCategory={activeCategory}
+                        onCategorySelect={setActiveCategory}
+                        onAddCategoryPress={() => setIsCategoryModalVisible(true)}
+                    />
+                </ScrollView>
+            </View>
 
-                <View style={styles.dishesSection}>
-                    <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionTitle}>Itens do Cardápio</Text>
-                        <Text style={styles.itemCount}>{itemCountDisplay}</Text>
-                    </View>
-
-                    {dishes.length > 0 ? (
-                        dishes.map(dish => (
-                            <DishCard
-                                key={dish._id}
-                                id={dish._id}
-                                name={dish.name}
-                                price={dish.price.toFixed(2).replace('.', ',')}
-                                description={dish.description}
-                                emoji={dish.emoji}
-                                isFavorite={dish.isFavorite}
-                                onEdit={() => handleEditDish(dish)}
-                                onDelete={handleDeleteDish}
-                            />
-                        ))
-                    ) : (
-                        <View style={styles.emptyState}>
-                            <Text style={styles.emptyStateText}>
-                                {searchQuery ? 'Nenhum item encontrado para essa busca.' : 'Sem itens no cardápio.'}
-                            </Text>
-                        </View>
-                    )}
-
-                    {loadingMore && (
-                        <View style={styles.loadingMoreContainer}>
-                            <ActivityIndicator size="small" color={COLORS.primary} />
-                            <Text style={styles.loadingMoreText}>Carregando mais itens...</Text>
-                        </View>
-                    )}
-
-                    <TouchableOpacity style={styles.addDishButton} onPress={handleAddItem}>
-                        <Feather name="plus" size={18} color="#fff" />
-                        <Text style={styles.addDishText}>Adicionar Item</Text>
-                    </TouchableOpacity>
+            <View style={styles.dishesHeaderContainer}>
+                <View style={styles.sectionHeader}>
+                    <Text style={styles.sectionTitle}>Itens do Cardápio</Text>
+                    <Text style={styles.itemCount}>{itemCountDisplay}</Text>
                 </View>
-            </ScrollView>
+            </View>
+
+            {isSearching ? (
+                <View style={styles.searchingContainer}>
+                    <ActivityIndicator size="large" color={COLORS.primary} />
+                    <Text style={styles.searchingText}>Buscando itens...</Text>
+                </View>
+            ) : (
+                <FlatList
+                    data={dishes}
+                    renderItem={renderDishItem}
+                    keyExtractor={item => item._id}
+                    contentContainerStyle={{ paddingBottom: bottomPadding }}
+                    onEndReached={hasMore ? handleLoadMore : null}
+                    onEndReachedThreshold={0.3}
+                    ListEmptyComponent={ListEmptyComponent}
+                    ListFooterComponent={ListFooterComponent}
+                    removeClippedSubviews={true}
+                    maxToRenderPerBatch={5}
+                    initialNumToRender={5}
+                    windowSize={10}
+                />
+            )}
 
             <AddDishModal
                 visible={isAddModalVisible}
@@ -229,10 +273,12 @@ export default function MenuGeneration() {
                     setIsEditing(false);
                 }}
                 onDishAdded={() => {
+                    shouldResetDishes.current = true;
                     setSkip(0);
                     setHasMore(true);
                 }}
                 onDishUpdated={() => {
+                    shouldResetDishes.current = true;
                     setSkip(0);
                     setHasMore(true);
                 }}
@@ -259,12 +305,25 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
     },
-    scrollView: {
-        flex: 1,
+    categoriesContainer: {
+        backgroundColor: COLORS.background,
     },
-    dishesSection: {
-        marginTop: 8,
-        paddingBottom: 16,
+    categoryScrollContent: {
+        paddingHorizontal: 8,
+    },
+    dishesHeaderContainer: {
+        backgroundColor: COLORS.background,
+    },
+    searchingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingTop: 40,
+    },
+    searchingText: {
+        marginTop: 12,
+        color: '#666',
+        fontSize: 16,
     },
     addDishButton: {
         flexDirection: 'row',
@@ -274,7 +333,8 @@ const styles = StyleSheet.create({
         borderRadius: 8,
         paddingVertical: 12,
         marginHorizontal: 16,
-        marginTop: 8,
+        marginTop: 16,
+        marginBottom: 8,
     },
     addDishText: {
         color: '#fff',
