@@ -2,6 +2,7 @@ import React from 'react';
 import { View, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { COLORS } from '@/constants/theme';
+import { useNavigation } from 'expo-router';
 
 interface SearchBarProps {
     searchQuery: string;
@@ -18,6 +19,8 @@ export const SearchBar = ({
     onScanMenu,
     isSearching = false
 }: SearchBarProps) => {
+    const navigation = useNavigation();
+
     return (
         <View style={styles.searchContainer}>
             <View style={styles.searchInputContainer}>

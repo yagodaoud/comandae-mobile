@@ -67,7 +67,6 @@ export default function AddDishModal({
     useEffect(() => {
         if (visible) {
             if (isEditing && editDish) {
-                // Form will be populated by useDishForm
             } else {
                 resetForm();
             }

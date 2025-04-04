@@ -1,4 +1,3 @@
-// components/DishesSection.js
 import React, { useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
 import { Feather } from '@expo/vector-icons';

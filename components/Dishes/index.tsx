@@ -1,4 +1,3 @@
-// MenuGeneration.js - Main Component
 import React, { useState, useRef } from 'react';
 import { View, StyleSheet, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -7,37 +6,34 @@ import TransparentHeader from '@/components/TransparentHeader';
 import { useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 
-// Import the extracted components
 import HeaderSection from './HeaderSection';
 import CategorySection from './CategorySection';
 import DishesSection from './DishesSection';
 import AddDishModal from './AddDishModal/AddDishModal';
 import AddCategoryModal from './AddCategoryModal';
 
-// Import custom hooks
 import { useCategories } from './hooks/useCategories';
 import { useDishes } from './hooks/useDishes';
+import { useRouter } from 'expo-router';
 
 const ITEMS_PER_PAGE = 10;
 
-export default function MenuGeneration() {
+export default function Dishes() {
     const insets = useSafeAreaInsets();
 
-    // State
     const [activeCategory, setActiveCategory] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [isSearching, setIsSearching] = useState(false);
 
-    // Modals state
     const [isAddModalVisible, setIsAddModalVisible] = useState(false);
     const [isCategoryModalVisible, setIsCategoryModalVisible] = useState(false);
     const [currentEditDish, setCurrentEditDish] = useState(null);
     const [isEditing, setIsEditing] = useState(false);
 
-    // Search timeout ref
     const searchTimeout = useRef(null);
 
-    // Custom hooks
+    const router = useRouter();
+
     const { categories, currentMaxOrder } = useCategories();
     const {
         dishes,
@@ -54,10 +50,8 @@ export default function MenuGeneration() {
         itemsPerPage: ITEMS_PER_PAGE
     });
 
-    // Mutations
     const deleteDish = useMutation(api.menu.deleteDish);
 
-    // Handlers
     const handleSearchChange = (query) => {
         setIsSearching(true);
 
@@ -107,7 +101,8 @@ export default function MenuGeneration() {
     };
 
     const handleScanMenu = () => {
-        console.log('Scan menu from image');
+        console.log('Navigating to Menu Generation screen...');
+        router.push('/dishes/menu-generation');
     };
 
     const handleCloseDishModal = () => {
