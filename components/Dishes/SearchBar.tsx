@@ -44,7 +44,7 @@ export const SearchBar = ({
                 style={styles.scanButton}
                 onPress={onScanMenu}
             >
-                <Feather name="camera" size={20} color={COLORS.white} />
+                <Feather name="clipboard" size={20} color={COLORS.white} />
             </TouchableOpacity>
         </View>
     );
