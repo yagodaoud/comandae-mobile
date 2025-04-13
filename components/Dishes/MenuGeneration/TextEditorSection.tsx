@@ -64,7 +64,6 @@ TextEditorSection.displayName = 'TextEditorSection';
 
 const styles = StyleSheet.create({
     container: {
-        marginTop: 20,
         backgroundColor: COLORS.white,
         borderRadius: 8,
         padding: 16,

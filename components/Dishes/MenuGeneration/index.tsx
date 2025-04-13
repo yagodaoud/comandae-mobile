@@ -1,11 +1,12 @@
 import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, Alert, Platform, Keyboard, KeyboardAvoidingView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Alert, Platform, Keyboard, KeyboardAvoidingView, TouchableOpacity } from 'react-native';
 import { COLORS } from '@/constants/theme';
 import { Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { Doc, Id } from '@/convex/_generated/dataModel';
+import { Ionicons } from '@expo/vector-icons';
 
 import ImageUploadSection from './ImageUploadSection';
 import ProcessButton from './ProcessButton';
@@ -28,6 +29,33 @@ interface State {
     selectedDishIds: Set<string>;
     isSelectionModalVisible: boolean;
 }
+
+const ActionCard = ({
+    icon,
+    title,
+    subtitle,
+    onPress
+}: {
+    icon: keyof typeof Ionicons.glyphMap;
+    title: string;
+    subtitle: string;
+    onPress: () => void;
+}) => (
+    <TouchableOpacity
+        style={styles.actionCard}
+        onPress={onPress}
+        activeOpacity={0.7}
+    >
+        <View style={styles.actionIcon}>
+            <Ionicons name={icon} size={24} color={COLORS.secondary} />
+        </View>
+        <View style={styles.actionContent}>
+            <Text style={styles.actionTitle}>{title}</Text>
+            <Text style={styles.actionSubtitle}>{subtitle}</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={20} color={COLORS.gray[400]} />
+    </TouchableOpacity>
+);
 
 export default function MenuGenerationScreen() {
     const router = useRouter();
@@ -210,6 +238,14 @@ export default function MenuGenerationScreen() {
         setState(prev => ({ ...prev, footerText: text }));
     }, []);
 
+    const handleGeneratePress = useCallback(() => {
+        setState(prev => ({
+            ...prev,
+            selectedDishIds: new Set(),
+            isSelectionModalVisible: true
+        }));
+    }, []);
+
     return (
         <KeyboardAvoidingView
             behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -223,17 +259,39 @@ export default function MenuGenerationScreen() {
                     keyboardShouldPersistTaps="handled"
                     showsVerticalScrollIndicator={false}
                 >
-                    <ImageUploadSection
-                        imageUri={state.imageUri}
-                        onImagePress={handleImagePress}
-                        isProcessing={state.isProcessing}
-                    />
+                    <View style={styles.header}>
+                        <Text style={styles.title}>Gerar Cardápio</Text>
+                        <Text style={styles.subtitle}>Escolha como deseja gerar o cardápio</Text>
+                    </View>
+
+                    <View style={styles.actionsContainer}>
+                        <ActionCard
+                            icon="list"
+                            title="Selecionar Manualmente"
+                            subtitle="Escolha os pratos diretamente da lista"
+                            onPress={handleGeneratePress}
+                        />
+                        <ActionCard
+                            icon="camera"
+                            title="Usar Imagem"
+                            subtitle="Gere a partir de uma foto do cardápio"
+                            onPress={handleImagePress}
+                        />
+                    </View>
 
                     {state.imageUri && (
-                        <ProcessButton
-                            isProcessing={state.isProcessing}
-                            onPress={handleProcessImage}
-                        />
+                        <View style={styles.imagePreviewContainer}>
+                            <Text style={styles.sectionTitle}>Imagem Selecionada</Text>
+                            <ImageUploadSection
+                                imageUri={state.imageUri}
+                                onImagePress={handleImagePress}
+                                isProcessing={state.isProcessing}
+                            />
+                            <ProcessButton
+                                isProcessing={state.isProcessing}
+                                onPress={handleProcessImage}
+                            />
+                        </View>
                     )}
 
                     {state.generatedMenu && (
@@ -242,21 +300,24 @@ export default function MenuGenerationScreen() {
                         />
                     )}
 
-                    <TextEditorSection
-                        key="header"
-                        title="Cabeçalho"
-                        initialText={state.headerText}
-                        onTextChange={handleHeaderChange}
-                        placeholder="Digite o cabeçalho do cardápio..."
-                    />
+                    <View style={styles.editorContainer}>
+                        <Text style={styles.sectionTitle}>Personalização</Text>
+                        <TextEditorSection
+                            key="header"
+                            title="Cabeçalho"
+                            initialText={state.headerText}
+                            onTextChange={handleHeaderChange}
+                            placeholder="Digite o cabeçalho do cardápio..."
+                        />
 
-                    <TextEditorSection
-                        key="footer"
-                        title="Rodapé"
-                        initialText={state.footerText}
-                        onTextChange={handleFooterChange}
-                        placeholder="Digite o rodapé do cardápio..."
-                    />
+                        <TextEditorSection
+                            key="footer"
+                            title="Rodapé"
+                            initialText={state.footerText}
+                            onTextChange={handleFooterChange}
+                            placeholder="Digite o rodapé do cardápio..."
+                        />
+                    </View>
                 </ScrollView>
 
                 <DishSelectionModal
@@ -285,5 +346,74 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
         paddingTop: 15,
         paddingBottom: 120,
-    }
+    },
+    header: {
+        marginBottom: 32,
+    },
+    title: {
+        fontSize: 28,
+        fontWeight: '700',
+        color: COLORS.black,
+        marginBottom: 8,
+    },
+    subtitle: {
+        fontSize: 16,
+        color: COLORS.gray[500],
+    },
+    actionsContainer: {
+        gap: 16,
+        marginBottom: 24,
+    },
+    actionCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 16,
+        backgroundColor: COLORS.white,
+        borderRadius: 12,
+        ...Platform.select({
+            ios: {
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.05,
+                shadowRadius: 8,
+            },
+            android: {
+                elevation: 2,
+            },
+        }),
+    },
+    actionIcon: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: COLORS.background,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 16,
+    },
+    actionContent: {
+        flex: 1,
+    },
+    actionTitle: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: COLORS.black,
+        marginBottom: 4,
+    },
+    actionSubtitle: {
+        fontSize: 14,
+        color: COLORS.gray[500],
+    },
+    imagePreviewContainer: {
+        marginBottom: 24,
+    },
+    sectionTitle: {
+        fontSize: 18,
+        fontWeight: '600',
+        color: COLORS.black,
+        marginBottom: 16,
+    },
+    editorContainer: {
+        gap: 24,
+    },
 });
