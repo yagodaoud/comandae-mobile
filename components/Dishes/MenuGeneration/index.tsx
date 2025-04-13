@@ -414,6 +414,7 @@ const styles = StyleSheet.create({
         marginBottom: 16,
     },
     editorContainer: {
-        gap: 24,
+        gap: 16,
+        marginTop: 8,
     },
 });
