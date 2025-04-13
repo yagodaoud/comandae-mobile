@@ -79,3 +79,10 @@ export const getAllDishes = query({
         return await ctx.db.query("dishes").collect();
     },
 });
+
+export const listCategories = query({
+    args: {},
+    handler: async (ctx) => {
+        return await ctx.db.query("dish_categories").collect();
+    },
+});

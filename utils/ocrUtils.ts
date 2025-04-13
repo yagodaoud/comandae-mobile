@@ -1,11 +1,7 @@
 import * as ImageManipulator from 'expo-image-manipulator';
+import { Doc, Id } from '@/convex/_generated/dataModel';
 
-interface Dish {
-    id: string;
-    name: string;
-    categoryId?: string;
-    emoji?: string;
-}
+type Dish = Doc<'dishes'>;
 
 interface ImageManipulationOptions {
     resize?: { width: number };

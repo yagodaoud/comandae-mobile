@@ -4,7 +4,11 @@ import { Feather } from '@expo/vector-icons';
 import { COLORS } from '@/constants/theme';
 import * as Clipboard from 'expo-clipboard';
 
-const GeneratedMenuSection = ({ generatedMenu }) => {
+interface GeneratedMenuSectionProps {
+    generatedMenu: string;
+}
+
+const GeneratedMenuSection: React.FC<GeneratedMenuSectionProps> = ({ generatedMenu }) => {
     const copyToClipboard = () => {
         if (generatedMenu) {
             Clipboard.setStringAsync(generatedMenu);
