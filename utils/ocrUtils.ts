@@ -3,7 +3,8 @@ import * as ImageManipulator from 'expo-image-manipulator';
 interface Dish {
     id: string;
     name: string;
-    category?: string;
+    categoryId?: string;
+    emoji?: string;
 }
 
 interface ImageManipulationOptions {
@@ -311,31 +312,25 @@ export const generateMenuContent = (matchedDishes: Dish[]): string => {
 
     // Group dishes by category
     const categorizedDishes = matchedDishes.reduce((acc, dish) => {
-        const category = dish.category || 'other';
-        if (!acc[category]) {
-            acc[category] = [];
+        const categoryId = dish.categoryId || 'other';
+        if (!acc[categoryId]) {
+            acc[categoryId] = [];
         }
-        acc[category].push(dish);
+        acc[categoryId].push(dish);
         return acc;
     }, {} as Record<string, Dish[]>);
 
-    // Define category order and labels
-    const categoryOrder = ['main', 'side', 'salad', 'dessert', 'other'];
-    const categoryLabels: Record<string, string> = {
-        main: '🥩 Prato Principal',
-        side: '🍚 Acompanhamentos',
-        salad: '🥗 Saladas',
-        dessert: '🍮 Sobremesa',
-        other: '🍽️ Outros'
-    };
+    // Get unique category IDs and sort them
+    const categoryIds = Object.keys(categorizedDishes);
 
     // Add dishes by category
-    categoryOrder.forEach(category => {
-        const dishes = categorizedDishes[category];
+    categoryIds.forEach(categoryId => {
+        const dishes = categorizedDishes[categoryId];
         if (dishes && dishes.length > 0) {
-            menuContent += `${categoryLabels[category]}:\n`;
+            // Add each dish with its emoji
             dishes.forEach(dish => {
-                menuContent += `• ${dish.name}\n`;
+                const emoji = dish.emoji || '🍽️'; // Default emoji if none provided
+                menuContent += `${emoji} ${dish.name}\n`;
             });
             menuContent += '\n';
         }
