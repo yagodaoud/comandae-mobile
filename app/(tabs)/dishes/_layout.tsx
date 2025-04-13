@@ -1,5 +1,6 @@
 import { Stack } from 'expo-router';
 import { COLORS } from '@/constants/theme';
+
 export default function DishesStackLayout() {
     return (
         <Stack
@@ -13,6 +14,13 @@ export default function DishesStackLayout() {
             <Stack.Screen
                 name="index"
                 options={{ headerShown: false }}
+            />
+            <Stack.Screen
+                name="menu-generation"
+                options={{
+                    headerShown: false,
+                    animation: 'none'
+                }}
             />
         </Stack>
     );

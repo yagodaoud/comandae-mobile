@@ -1,12 +1,28 @@
 import { useState, useEffect, useRef } from 'react';
 import { useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
+import { Id } from '@/convex/_generated/dataModel';
 
-export const useDishes = ({ activeCategory, searchQuery, itemsPerPage }) => {
+interface UseDishesProps {
+    activeCategory: Id<'dish_categories'> | null;
+    searchQuery: string | null;
+    itemsPerPage: number;
+}
+
+interface UseAllDishesProps {
+    activeCategory?: Id<'dish_categories'> | null;
+    searchQuery?: string | null;
+}
+
+export const useDishes = ({
+    activeCategory,
+    searchQuery,
+    itemsPerPage
+}: UseDishesProps) => {
     const [skip, setSkip] = useState(0);
     const [hasMore, setHasMore] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
-    const [dishes, setDishes] = useState([]);
+    const [dishes, setDishes] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
     const shouldResetDishes = useRef(false);
@@ -14,13 +30,13 @@ export const useDishes = ({ activeCategory, searchQuery, itemsPerPage }) => {
     const paginatedDishes = useQuery(api.dishes.getDishesWithPagination, {
         limit: itemsPerPage,
         skip: skip,
-        categoryId: activeCategory,
-        searchQuery: searchQuery
+        categoryId: activeCategory || undefined,
+        searchQuery: searchQuery || undefined
     }) || [];
 
     const totalDishCount = useQuery(api.dishes.getDishesCount, {
-        categoryId: activeCategory,
-        searchQuery: searchQuery
+        categoryId: activeCategory || undefined,
+        searchQuery: searchQuery || undefined
     }) || 0;
 
     useEffect(() => {
@@ -74,5 +90,24 @@ export const useDishes = ({ activeCategory, searchQuery, itemsPerPage }) => {
         loadingMore,
         resetDishes,
         shouldResetDishes
+    };
+};
+
+export const useAllDishes = ({
+}: UseAllDishesProps = {}) => {
+    const [isLoading, setIsLoading] = useState(true);
+    const [dishes, setDishes] = useState<any[]>([]);
+
+    const allDishes = useQuery(api.dishes.getAllDishes, {
+    }) || [];
+
+    useEffect(() => {
+        setDishes(allDishes);
+        setIsLoading(false);
+    }, [allDishes]);
+
+    return {
+        dishes,
+        isLoading
     };
 };

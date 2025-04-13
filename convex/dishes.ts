@@ -72,3 +72,10 @@ export const getDishesCount = query({
         return dishes.length;
     }
 });
+
+export const getAllDishes = query({
+    args: {},
+    handler: async (ctx) => {
+        return await ctx.db.query("dishes").collect();
+    },
+});

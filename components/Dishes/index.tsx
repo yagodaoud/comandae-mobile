@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { View, StyleSheet, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS } from '@/constants/theme';
@@ -100,10 +100,9 @@ export default function Dishes() {
         }
     };
 
-    const handleScanMenu = () => {
-        console.log('Navigating to Menu Generation screen...');
+    const handleScanMenu = useCallback(() => {
         router.push('/dishes/menu-generation');
-    };
+    }, [router]);
 
     const handleCloseDishModal = () => {
         setIsAddModalVisible(false);

@@ -1,13 +1,26 @@
 import * as ImageManipulator from 'expo-image-manipulator';
+
+interface Dish {
+    id: string;
+    name: string;
+    category?: string;
+}
+
+interface ImageManipulationOptions {
+    resize?: { width: number };
+    format?: ImageManipulator.SaveFormat;
+    compress?: number;
+}
+
 // OCR Processing optimized for Portuguese handwritten menus
-export const processImageWithOCR = async (imageUri) => {
+export const processImageWithOCR = async (imageUri: string): Promise<string[]> => {
     try {
         // 1. Enhanced image preprocessing
         const preprocessedUri = await preprocessHandwrittenImage(imageUri);
         const base64Image = await convertImageToBase64(preprocessedUri);
 
         // 2. Validate base64 image
-        if (!base64Image || base64Image.length < 100) {
+        if (!base64Image || typeof base64Image !== 'string' || base64Image.length < 100) {
             throw new Error('Invalid image data');
         }
 
@@ -24,13 +37,12 @@ export const processImageWithOCR = async (imageUri) => {
                 image: { content: base64Image },
                 features: [{
                     type: 'DOCUMENT_TEXT_DETECTION',
-                    maxResults: 1
+                    maxResults: 50
                 }],
                 imageContext: {
-                    languageHints: ['pt'], // Focus on Portuguese
+                    languageHints: ['pt-BR', 'pt'],
                     textDetectionParams: {
-                        enableTextDetectionConfidenceScore: true,
-                        advancedOcrOptions: ['legacy_cjk_alt'] // Helps with handwriting
+                        enableTextDetectionConfidenceScore: true
                     }
                 }
             }]
@@ -39,9 +51,6 @@ export const processImageWithOCR = async (imageUri) => {
         // 4. API request with timeout
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 15000);
-
-        console.log('API request:', JSON.stringify(requestBody));
-        return;
 
         const response = await fetch(`${apiUrl}?key=${apiKey}`, {
             method: 'POST',
@@ -63,41 +72,43 @@ export const processImageWithOCR = async (imageUri) => {
             throw new Error(`API error: ${errorMsg}`);
         }
 
-        const rawText = data.responses?.[0]?.fullTextAnnotation?.text;
-        if (!rawText) throw new Error('No text detected');
+        // Get the first text annotation (full text)
+        const fullText = data.responses?.[0]?.textAnnotations?.[0]?.description;
+        if (!fullText) {
+            throw new Error('No text detected');
+        }
 
-        // 6. Specialized cleaning for Portuguese menus
-        const cleanedText = cleanPortugueseMenuText(rawText);
-        return cleanedText;
+        // Split by newlines and clean each line
+        const menuItems: string[] = fullText
+            .split('\n')
+            .map((line: string) => line.trim())
+            .filter((line: string) => line.length > 0)
+            .map((line: string) => cleanPortugueseMenuText(line));
+
+        // Filter out empty strings and return unique items
+        return [...new Set(menuItems.filter((text: string) => text.length > 0))];
 
     } catch (error) {
-        console.error('OCR Processing Error:', {
-            message: error.message,
-            stack: error.stack
-        });
+        console.error('OCR Processing Error:', error instanceof Error ? error.message : 'Unknown error');
         throw error;
     }
 };
 
 // Specialized image preprocessing for handwritten Portuguese
-export const preprocessHandwrittenImage = async (uri) => {
+export const preprocessHandwrittenImage = async (uri: string): Promise<string> => {
     try {
-        // Convert to grayscale first for better contrast with blue/black ink
+        // First pass: Convert to grayscale and enhance contrast
         const grayscaleResult = await ImageManipulator.manipulateAsync(
             uri,
-            [{ resize: { width: 1600 } }],
-            { format: ImageManipulator.SaveFormat.JPEG }
+            [{ resize: { width: 2000 } }], // Increased resolution
+            { format: ImageManipulator.SaveFormat.JPEG, compress: 0.8 }
         );
 
-        // Then enhance contrast and sharpness
+        // Second pass: Further enhance contrast and sharpness
         const result = await ImageManipulator.manipulateAsync(
             grayscaleResult.uri,
-            [
-                { contrast: 0.5 },
-                { brightness: 0.1 },
-                { sharpen: 0.3 } // Add sharpening for handwritten text
-            ],
-            { compress: 0.9, format: ImageManipulator.SaveFormat.JPEG }
+            [{ resize: { width: 2000 } }],
+            { format: ImageManipulator.SaveFormat.JPEG, compress: 0.9 }
         );
         return result.uri;
     } catch (error) {
@@ -107,11 +118,11 @@ export const preprocessHandwrittenImage = async (uri) => {
 };
 
 // Specialized cleaner for Portuguese menu text
-export const cleanPortugueseMenuText = (ocrText) => {
+export const cleanPortugueseMenuText = (ocrText: string): string => {
     if (!ocrText) return '';
 
     // Common Portuguese menu corrections
-    const portugueseCorrections = {
+    const portugueseCorrections: Record<string, string> = {
         // Common OCR errors in Portuguese handwriting
         'feiJio': 'feijão',
         'arros': 'arroz',
@@ -161,7 +172,7 @@ export const cleanPortugueseMenuText = (ocrText) => {
 };
 
 // Enhanced base64 conversion with validation
-export const convertImageToBase64 = async (uri) => {
+export const convertImageToBase64 = async (uri: string): Promise<string> => {
     try {
         const response = await fetch(uri);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -173,7 +184,7 @@ export const convertImageToBase64 = async (uri) => {
             const reader = new FileReader();
             reader.onloadend = () => {
                 const result = reader.result;
-                if (!result) return reject('No data');
+                if (typeof result !== 'string') return reject('No data');
                 const base64data = result.split(',')[1];
                 if (!base64data) reject('Invalid base64 data');
                 resolve(base64data);
@@ -188,154 +199,156 @@ export const convertImageToBase64 = async (uri) => {
 };
 
 // Enhanced dish matching for Portuguese menus
-export const matchDishesWithOCR = (ocrText, storedDishes) => {
-    if (!storedDishes || !ocrText) return [];
+export const matchDishesWithOCR = (ocrTexts: string[], storedDishes: Dish[]): Dish[] => {
+    console.log('\n🔍 Starting dish matching process...');
+    console.log('📝 OCR Texts received:', JSON.stringify(ocrTexts, null, 2));
+    console.log('🍽️ Total dishes to match against:', storedDishes.length);
 
-    // First clean the OCR text specifically for matching
-    const cleanedText = cleanForMatching(ocrText);
-    const extractedLines = cleanedText.split('\n').filter(line => line.trim().length > 0);
-    const matchedDishes = [];
+    if (!storedDishes || !ocrTexts || ocrTexts.length === 0) return [];
 
-    extractedLines.forEach(line => {
-        const trimmedLine = line.trim().toLowerCase();
+    const matchedDishes: Dish[] = [];
+    const unmatchedWords: string[] = [];
 
-        // Skip lines that are prices only (e.g., "R$ 20,00")
-        if (/^r\$\s*\d+[\.,]\d{2}$/i.test(trimmedLine)) return;
+    // Helper function to normalize text (remove accents and convert to uppercase)
+    const normalizeText = (text: string): string => {
+        return text
+            .toUpperCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .trim();
+    };
 
-        // Skip very short lines or common non-dish text
-        if (trimmedLine.length < 3 || /^(e|ou|com|sem)$/i.test(trimmedLine)) return;
+    // Clean and normalize OCR texts
+    const cleanedTexts = ocrTexts.map(text => ({
+        original: text,
+        normalized: normalizeText(text)
+    })).filter(item => item.normalized.length > 2); // Skip very short words
 
-        // Find closest match using Portuguese-specific matching
-        const matches = storedDishes.filter(dish => {
-            const dishName = dish.name.toLowerCase();
+    console.log('🧹 Cleaned texts:', cleanedTexts.map(t => `${t.original} -> ${t.normalized}`));
 
-            // Special handling for Portuguese compound words
-            const normalizedLine = trimmedLine.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-            const normalizedDish = dishName.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    // Prepare normalized stored dishes for better matching
+    const normalizedDishes = storedDishes.map(dish => ({
+        ...dish,
+        normalizedName: normalizeText(dish.name)
+    }));
 
-            // Check for partial matches considering Portuguese word variations
-            return (
-                normalizedDish.includes(normalizedLine) ||
-                normalizedLine.includes(normalizedDish) ||
-                portuguesePartialMatch(normalizedLine, normalizedDish)
-            );
+    // Try to match each OCR text with stored dishes
+    cleanedTexts.forEach(({ original, normalized }) => {
+        if (normalized.length < 3) return; // Skip very short words
+
+        console.log(`\n👀 Checking word: "${original}" (normalized: "${normalized}")`);
+
+        // First, try to find exact matches
+        let matches = normalizedDishes.filter(dish => {
+            const isExactMatch = dish.normalizedName === normalized;
+            if (isExactMatch) {
+                console.log(`   🔍 Exact match found: "${dish.name}"`);
+            }
+            return isExactMatch;
         });
 
+        // If no exact matches found, try partial matches
+        if (matches.length === 0) {
+            matches = normalizedDishes.filter(dish => {
+                // Check if the OCR text is a substring of the dish name or vice versa
+                const isSubstring = dish.normalizedName.includes(normalized) ||
+                    normalized.includes(dish.normalizedName);
+
+                if (isSubstring) {
+                    console.log(`   🔍 Partial match found: "${dish.name}" (${dish.normalizedName})`);
+                    return true;
+                }
+
+                return false;
+            });
+        }
+
         if (matches.length > 0) {
-            // Sort by similarity score (improved for Portuguese)
+            // Sort matches by relevance
             matches.sort((a, b) => {
-                const aScore = portugueseSimilarityScore(trimmedLine, a.name.toLowerCase());
-                const bScore = portugueseSimilarityScore(trimmedLine, b.name.toLowerCase());
-                return bScore - aScore; // Higher score first
+                // Exact matches first
+                if (a.normalizedName === normalized) return -1;
+                if (b.normalizedName === normalized) return 1;
+
+                // Then by length difference
+                const diffA = Math.abs(a.normalizedName.length - normalized.length);
+                const diffB = Math.abs(b.normalizedName.length - normalized.length);
+                return diffA - diffB;
             });
 
-            if (!matchedDishes.some(dish => dish.id === matches[0].id)) {
-                matchedDishes.push(matches[0]);
+            const bestMatch = matches[0];
+            // Check if we already have this exact dish name (case-insensitive)
+            const isDuplicate = matchedDishes.some(dish =>
+                normalizeText(dish.name) === normalizeText(bestMatch.name)
+            );
+
+            if (!isDuplicate) {
+                matchedDishes.push(bestMatch);
+                console.log(`   ✅ Added match: "${bestMatch.name}" (normalized: "${bestMatch.normalizedName}")`);
+            } else {
+                console.log(`   ⚠️ Skipping duplicate match: "${bestMatch.name}"`);
             }
+        } else {
+            unmatchedWords.push(original);
+            console.log(`   ❌ No matches found for: "${original}"`);
         }
     });
+
+    console.log('\n📊 Matching Summary:');
+    console.log(`✅ Matched dishes: ${matchedDishes.length}`);
+    console.log('   Matches:', matchedDishes.map(d => d.name));
+    console.log(`❌ Unmatched words: ${unmatchedWords.length}`);
+    if (unmatchedWords.length > 0) {
+        console.log('   Unmatched:', unmatchedWords);
+    }
 
     return matchedDishes;
 };
 
-// Helper function for Portuguese-specific matching
-function portuguesePartialMatch(text, dishName) {
-    const textWords = text.split(/\s+/);
-    const dishWords = dishName.split(/\s+/);
-
-    return textWords.some(tWord =>
-        dishWords.some(dWord =>
-            dWord.startsWith(tWord) ||
-            tWord.startsWith(dWord) ||
-            levenshteinDistance(tWord, dWord) <= 2
-        )
-    );
-}
-
-// Similarity score considering Portuguese language characteristics
-function portugueseSimilarityScore(text, dishName) {
-    // Base score from Levenshtein
-    let score = 1 - (levenshteinDistance(text, dishName) / Math.max(text.length, dishName.length));
-
-    // Bonus for matching at start (common in Portuguese dishes)
-    if (dishName.startsWith(text) || text.startsWith(dishName)) {
-        score += 0.3;
-    }
-
-    // Bonus for matching root words
-    if (text.length > 3 && dishName.includes(text.substring(0, 3))) {
-        score += 0.2;
-    }
-
-    return Math.min(1, score); // Cap at 1
-}
-
 // Generate formatted menu content
-export const generateMenuContent = (matchedDishes) => {
+export const generateMenuContent = (matchedDishes: Dish[]): string => {
     let menuContent = '';
 
     // Group dishes by category
-    const categorizedDishes = {
-        mainDishes: matchedDishes.filter(dish => dish.category === 'main'),
-        sides: matchedDishes.filter(dish => dish.category === 'side'),
-        salads: matchedDishes.filter(dish => dish.category === 'salad'),
-        desserts: matchedDishes.filter(dish => dish.category === 'dessert')
+    const categorizedDishes = matchedDishes.reduce((acc, dish) => {
+        const category = dish.category || 'other';
+        if (!acc[category]) {
+            acc[category] = [];
+        }
+        acc[category].push(dish);
+        return acc;
+    }, {} as Record<string, Dish[]>);
+
+    // Define category order and labels
+    const categoryOrder = ['main', 'side', 'salad', 'dessert', 'other'];
+    const categoryLabels: Record<string, string> = {
+        main: '🥩 Prato Principal',
+        side: '🍚 Acompanhamentos',
+        salad: '🥗 Saladas',
+        dessert: '🍮 Sobremesa',
+        other: '🍽️ Outros'
     };
 
-    // Generate formatted menu text
-    menuContent += '🍽️ OPÇÕES DO DIA:\n\n';
-
-    if (categorizedDishes.mainDishes.length > 0) {
-        menuContent += '🥩 Prato Principal:\n';
-        categorizedDishes.mainDishes.forEach(dish => {
-            menuContent += `• ${dish.name}\n`;
-        });
-        menuContent += '\n';
-    }
-
-    if (categorizedDishes.sides.length > 0) {
-        menuContent += '🍚 Acompanhamentos:\n';
-        categorizedDishes.sides.forEach(dish => {
-            menuContent += `• ${dish.name}\n`;
-        });
-        menuContent += '\n';
-    }
-
-    if (categorizedDishes.salads.length > 0) {
-        menuContent += '🥗 Saladas:\n';
-        categorizedDishes.salads.forEach(dish => {
-            menuContent += `• ${dish.name}\n`;
-        });
-        menuContent += '\n';
-    }
-
-    if (categorizedDishes.desserts.length > 0) {
-        menuContent += '🍮 Sobremesa:\n';
-        categorizedDishes.desserts.forEach(dish => {
-            menuContent += `• ${dish.name}\n`;
-        });
-        menuContent += '\n';
-    }
-
-    // If no dishes were matched, provide a message
-    if (Object.values(categorizedDishes).every(category => category.length === 0)) {
-        menuContent += '⚠️ Nenhum prato foi reconhecido na imagem.\n\n';
-        menuContent += 'Por favor, tente tirar uma foto mais clara ou adicionar pratos manualmente.\n\n';
-    }
-
-    menuContent += '💰 Valores:\n';
-    menuContent += '• Marmitex P: R$ 18,00\n';
-    menuContent += '• Marmitex M: R$ 22,00\n';
-    menuContent += '• Marmitex G: R$ 26,00';
+    // Add dishes by category
+    categoryOrder.forEach(category => {
+        const dishes = categorizedDishes[category];
+        if (dishes && dishes.length > 0) {
+            menuContent += `${categoryLabels[category]}:\n`;
+            dishes.forEach(dish => {
+                menuContent += `• ${dish.name}\n`;
+            });
+            menuContent += '\n';
+        }
+    });
 
     return menuContent;
 };
 
 // Levenshtein distance for string similarity
-export function levenshteinDistance(str1, str2) {
+export function levenshteinDistance(str1: string, str2: string): number {
     const m = str1.length;
     const n = str2.length;
-    const dp = Array(m + 1).fill().map(() => Array(n + 1).fill(0));
+    const dp = Array(m + 1).fill(null).map(() => Array(n + 1).fill(0));
 
     for (let i = 0; i <= m; i++) dp[i][0] = i;
     for (let j = 0; j <= n; j++) dp[0][j] = j;

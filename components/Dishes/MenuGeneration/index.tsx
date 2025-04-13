@@ -1,31 +1,53 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, Alert, Platform, Keyboard, KeyboardAvoidingView } from 'react-native';
 import { COLORS } from '@/constants/theme';
 import { Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
+import { useRouter } from 'expo-router';
 
 import ImageUploadSection from './ImageUploadSection';
 import ProcessButton from './ProcessButton';
 import GeneratedMenuSection from './GeneratedMenuSection';
 import TextEditorSection from './TextEditorSection';
-import { matchDishesWithOCR, processImageWithOCR } from '@/utils/ocrUtils';
+import { matchDishesWithOCR, processImageWithOCR, generateMenuContent } from '@/utils/ocrUtils';
+import { useAllDishes } from '../hooks/useDishes';
 
 const INITIAL_MENU_HEADER = "Bom dia!\n\nSegue o cardápio para marmitex:";
 const INITIAL_MENU_FOOTER = "📃Cardápio sujeito a alteração ao longo do expediente.\n📝 Para realizar seu pedido, mande a mensagem no privado da conta do Restaurante Cozinha & Cia.\n👨‍🍳Nosso tempero é nosso toque!\n🍝Self service | Marmitex | Marmita \n📍Seg. à Sex. - 10h45 às 14h - Sáb. - 10h45 às 14h30\n📞3403-7869\n📞98141-4737 \n❤Amamos a Cozinha & a Sua CIA";
 
 export default function MenuGenerationScreen() {
+    const router = useRouter();
     const insets = useSafeAreaInsets();
-    const [imageUri, setImageUri] = useState(null);
-    const [headerText, setHeaderText] = useState(INITIAL_MENU_HEADER);
-    const [footerText, setFooterText] = useState(INITIAL_MENU_FOOTER);
-    const [isProcessing, setIsProcessing] = useState(false);
-    const [generatedMenu, setGeneratedMenu] = useState(null);
-
     const scrollViewRef = useRef(null);
 
+    const [state, setState] = useState({
+        imageUri: null,
+        headerText: INITIAL_MENU_HEADER,
+        footerText: INITIAL_MENU_FOOTER,
+        isProcessing: false,
+        generatedMenu: null
+    });
+
+    const dishesOptions = useMemo(() => ({
+        activeCategory: null,
+        searchQuery: null,
+        itemsPerPage: null  // This signals we want all dishes without pagination
+    }), []);
+
+    const { dishes, isLoading } = useAllDishes();
+
+    // Add cleanup effect
+    useEffect(() => {
+        return () => {
+            // Cleanup any subscriptions or timeouts here
+            if (scrollViewRef.current) {
+                scrollViewRef.current = null;
+            }
+        };
+    }, []);
+
     const pickImage = async (useCamera = false) => {
-        let result;
         const options = {
             mediaTypes: ImagePicker.MediaTypeOptions.Images,
             allowsEditing: true,
@@ -35,24 +57,21 @@ export default function MenuGenerationScreen() {
 
         try {
             if (useCamera) {
-                const cameraPermission = await ImagePicker.requestCameraPermissionsAsync();
-                if (!cameraPermission.granted) {
+                const { granted } = await ImagePicker.requestCameraPermissionsAsync();
+                if (!granted) {
                     Alert.alert("Permissão Necessária", "Acesso à câmera é necessário para tirar foto.");
                     return;
                 }
-                result = await ImagePicker.launchCameraAsync(options);
+                const result = await ImagePicker.launchCameraAsync(options);
+                handleImageResult(result);
             } else {
-                const libraryPermission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-                if (!libraryPermission.granted) {
+                const { granted } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+                if (!granted) {
                     Alert.alert("Permissão Necessária", "Acesso à galeria é necessário para escolher uma imagem.");
                     return;
                 }
-                result = await ImagePicker.launchImageLibraryAsync(options);
-            }
-
-            if (!result.canceled && result.assets && result.assets.length > 0) {
-                setImageUri(result.assets[0].uri);
-                setGeneratedMenu(null);
+                const result = await ImagePicker.launchImageLibraryAsync(options);
+                handleImageResult(result);
             }
         } catch (error) {
             console.error("ImagePicker Error: ", error);
@@ -60,20 +79,33 @@ export default function MenuGenerationScreen() {
         }
     };
 
-    const handleImagePress = () => {
-        if (isProcessing) return;
+    const handleImageResult = (result) => {
+        if (!result.canceled && result.assets?.[0]) {
+            setState(prev => ({
+                ...prev,
+                imageUri: result.assets[0].uri,
+                generatedMenu: null
+            }));
+        }
+    };
 
-        if (imageUri) {
+    const handleImagePress = () => {
+        if (state.isProcessing) return;
+
+        if (state.imageUri) {
             Alert.alert(
                 "Alterar Imagem",
                 "Deseja remover a imagem atual ou escolher outra?",
                 [
                     { text: "Cancelar", style: "cancel" },
                     {
-                        text: "Remover Imagem", onPress: () => {
-                            setImageUri(null);
-                            setGeneratedMenu(null);
-                        }, style: 'destructive'
+                        text: "Remover Imagem",
+                        onPress: () => setState(prev => ({
+                            ...prev,
+                            imageUri: null,
+                            generatedMenu: null
+                        })),
+                        style: 'destructive'
                     },
                     { text: "Escolher Outra", onPress: showImageSourceOptions },
                 ]
@@ -93,150 +125,47 @@ export default function MenuGenerationScreen() {
                 { text: "Escolher da Galeria", onPress: () => pickImage(false) },
             ]
         );
-    }
-
-    const generateFakeMenuItems = () => {
-        const mainDishes = [
-            "Filé de Frango Grelhado",
-            "Bife Acebolado",
-            "Picadinho de Carne",
-            "Filé de Peixe",
-            "Carne de Panela"
-        ];
-        const sides = [
-            "Arroz Branco",
-            "Feijão Carioca",
-            "Batata Frita",
-            "Purê de Batata",
-            "Macarrão ao Alho e Óleo"
-        ];
-        const salads = [
-            "Salada de Folhas",
-            "Salada de Tomate",
-            "Vinagrete",
-            "Salpicão",
-            "Salada de Repolho"
-        ];
-
-        const todayMain = mainDishes[Math.floor(Math.random() * mainDishes.length)];
-        const todaySide1 = sides[Math.floor(Math.random() * sides.length)];
-        const todaySide2 = sides.filter(side => side !== todaySide1)[Math.floor(Math.random() * (sides.length - 1))];
-        const todaySalad = salads[Math.floor(Math.random() * salads.length)];
-
-        return `🍽️ OPÇÕES DO DIA:
-
-🥩 Prato Principal:
-• ${todayMain}
-
-🍚 Acompanhamentos:
-• ${todaySide1}
-• ${todaySide2}
-• ${todaySalad}
-
-🍮 Sobremesa:
-• Pudim de Leite ou Fruta
-
-💰 Valores:
-• Marmitex P: R$ 18,00
-• Marmitex M: R$ 22,00
-• Marmitex G: R$ 26,00`;
     };
 
     const handleProcessImage = async () => {
-        if (!imageUri) {
+        if (!state.imageUri) {
             Alert.alert("Nenhuma Imagem", "Por favor, carregue uma imagem primeiro.");
             return;
         }
-        setIsProcessing(true);
+
+        setState(prev => ({ ...prev, isProcessing: true }));
 
         try {
-            // 1. Process the image with OCR
-            const extractedText = await processImageWithOCR(imageUri);
+            const extractedText = await processImageWithOCR(state.imageUri);
+            const matchedDishes = matchDishesWithOCR(extractedText, dishes);
+            const menuContent = generateMenuContent(matchedDishes);
+            const fullMenu = `${state.headerText}\n\n${menuContent}\n\n${state.footerText}`;
 
-            // 2. Match the extracted text with stored dishes
-            const matchedDishes = matchDishesWithOCR(extractedText, storedDishes);
+            setState(prev => ({
+                ...prev,
+                generatedMenu: fullMenu,
+                isProcessing: false
+            }));
 
-            // 3. Generate menu content based on matched dishes
-            let menuContent = '';
-
-            // Group dishes by category
-            const categorizedDishes = {
-                mainDishes: matchedDishes.filter(dish => dish.category === 'main'),
-                sides: matchedDishes.filter(dish => dish.category === 'side'),
-                salads: matchedDishes.filter(dish => dish.category === 'salad'),
-                desserts: matchedDishes.filter(dish => dish.category === 'dessert')
-            };
-
-            // Generate formatted menu text
-            menuContent += '🍽️ OPÇÕES DO DIA:\n\n';
-
-            if (categorizedDishes.mainDishes.length > 0) {
-                menuContent += '🥩 Prato Principal:\n';
-                categorizedDishes.mainDishes.forEach(dish => {
-                    menuContent += `• ${dish.name}\n`;
+            if (scrollViewRef.current) {
+                requestAnimationFrame(() => {
+                    scrollViewRef.current?.scrollTo({ y: 300, animated: true });
                 });
-                menuContent += '\n';
             }
-
-            if (categorizedDishes.sides.length > 0) {
-                menuContent += '🍚 Acompanhamentos:\n';
-                categorizedDishes.sides.forEach(dish => {
-                    menuContent += `• ${dish.name}\n`;
-                });
-                menuContent += '\n';
-            }
-
-            if (categorizedDishes.salads.length > 0) {
-                menuContent += '🥗 Saladas:\n';
-                categorizedDishes.salads.forEach(dish => {
-                    menuContent += `• ${dish.name}\n`;
-                });
-                menuContent += '\n';
-            }
-
-            if (categorizedDishes.desserts.length > 0) {
-                menuContent += '🍮 Sobremesa:\n';
-                categorizedDishes.desserts.forEach(dish => {
-                    menuContent += `• ${dish.name}\n`;
-                });
-                menuContent += '\n';
-            }
-
-            menuContent += '💰 Valores:\n';
-            menuContent += '• Marmitex P: R$ 18,00\n';
-            menuContent += '• Marmitex M: R$ 22,00\n';
-            menuContent += '• Marmitex G: R$ 26,00';
-
-            // Create the full menu
-            const fullMenu = `${headerText}\n\n${menuContent}\n\n${footerText}`;
-            setGeneratedMenu(fullMenu);
-
-            // Scroll to show the result
-            setTimeout(() => {
-                scrollViewRef.current?.scrollTo({ y: 300, animated: true });
-            }, 500);
-
         } catch (error) {
             console.error(error);
             Alert.alert("Erro", "Não foi possível processar o cardápio.");
-        } finally {
-            setIsProcessing(false);
+            setState(prev => ({ ...prev, isProcessing: false }));
         }
     };
 
-    const onHeaderChange = (newText) => {
-        setHeaderText(newText);
-        if (generatedMenu) {
-            setGeneratedMenu(null);
-        }
-    };
+    const handleHeaderChange = useCallback((text: string) => {
+        setState(prev => ({ ...prev, headerText: text }));
+    }, []);
 
-    const onFooterChange = (newText) => {
-        setFooterText(newText);
-        if (generatedMenu) {
-            setGeneratedMenu(null);
-        }
-    };
+    const handleFooterChange = useCallback((text: string) => {
+        setState(prev => ({ ...prev, footerText: text }));
+    }, []);
 
     return (
         <KeyboardAvoidingView
@@ -244,20 +173,7 @@ export default function MenuGenerationScreen() {
             style={styles.keyboardAvoidingContainer}
             keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
         >
-            <View style={[
-                styles.container,
-                { paddingTop: insets.top, paddingBottom: insets.bottom }
-            ]}>
-                <Stack.Screen options={{
-                    title: 'Gerar via Imagem',
-                    headerStyle: { backgroundColor: COLORS.background },
-                    headerTitleStyle: { color: COLORS.primary, fontSize: 18 },
-                    headerTintColor: COLORS.secondary,
-                    headerShown: true,
-                    headerShadowVisible: false,
-                    headerTitleAlign: 'center',
-                }} />
-
+            <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
                 <ScrollView
                     ref={scrollViewRef}
                     contentContainerStyle={styles.scrollContainer}
@@ -265,35 +181,37 @@ export default function MenuGenerationScreen() {
                     showsVerticalScrollIndicator={false}
                 >
                     <ImageUploadSection
-                        imageUri={imageUri}
+                        imageUri={state.imageUri}
                         onImagePress={handleImagePress}
-                        isProcessing={isProcessing}
+                        isProcessing={state.isProcessing}
                     />
 
-                    {imageUri && (
+                    {state.imageUri && (
                         <ProcessButton
-                            isProcessing={isProcessing}
+                            isProcessing={state.isProcessing}
                             onPress={handleProcessImage}
                         />
                     )}
 
-                    {generatedMenu && (
+                    {state.generatedMenu && (
                         <GeneratedMenuSection
-                            generatedMenu={generatedMenu}
+                            generatedMenu={state.generatedMenu}
                         />
                     )}
 
                     <TextEditorSection
+                        key="header"
                         title="Cabeçalho"
-                        initialText={headerText}
-                        onTextChange={onHeaderChange}
+                        initialText={state.headerText}
+                        onTextChange={handleHeaderChange}
                         placeholder="Digite o cabeçalho do cardápio..."
                     />
 
                     <TextEditorSection
+                        key="footer"
                         title="Rodapé"
-                        initialText={footerText}
-                        onTextChange={onFooterChange}
+                        initialText={state.footerText}
+                        onTextChange={handleFooterChange}
                         placeholder="Digite o rodapé do cardápio..."
                     />
                 </ScrollView>
