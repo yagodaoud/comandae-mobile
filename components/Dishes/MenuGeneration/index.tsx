@@ -294,7 +294,7 @@ export default function MenuGenerationScreen() {
                         </View>
                     )}
 
-                    {state.generatedMenu && (
+                    {dishes && state.selectedDishIds.size > 0 && state.generatedMenu && (
                         <GeneratedMenuSection
                             generatedMenu={state.generatedMenu}
                         />
