@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+import { Feather, MaterialIcons } from '@expo/vector-icons';
 import { COLORS } from '@/constants/theme';
 import * as Clipboard from 'expo-clipboard';
 import { WebView } from 'react-native-webview';
@@ -8,13 +8,86 @@ import { Doc } from '@/convex/_generated/dataModel';
 
 interface GeneratedMenuSectionProps {
     generatedMenu: string;
+    selectedDishes: Doc<'dishes'>[];
 }
 
-const GeneratedMenuSection: React.FC<GeneratedMenuSectionProps> = ({ generatedMenu }) => {
+const GeneratedMenuSection: React.FC<GeneratedMenuSectionProps> = ({ generatedMenu, selectedDishes }) => {
     const [isPDFModalVisible, setIsPDFModalVisible] = useState(false);
 
     const copyToClipboard = async () => {
         await Clipboard.setStringAsync(generatedMenu);
+    };
+
+    const generateQuadrantHTML = (dishes: Doc<'dishes'>[], quadrantIndex: number) => {
+        const categories = {
+            rice_and_beans: dishes.filter(d => d.categoryId === 'rice' || d.categoryId === 'beans'),
+            meats: dishes.filter(d => d.categoryId === 'meats'),
+            sides: dishes.filter(d => d.categoryId === 'sides'),
+            salads: dishes.filter(d => d.categoryId === 'salads')
+        };
+
+        const riceAndBeans = categories.rice_and_beans
+            .reduce((acc, item) => {
+                if (item.categoryId === 'rice') {
+                    acc.rice.push(item.name.replace(/[^\w\s|]/g, '').trim());
+                } else if (item.categoryId === 'beans') {
+                    acc.beans.push(item.name.replace(/[^\w\s|]/g, '').trim());
+                }
+                return acc;
+            }, { rice: [] as string[], beans: [] as string[] });
+
+        const meatsHtml = categories.meats
+            .reduce((acc: string[], item, index, array) => {
+                const name = item.name.replace(/[^\w\s|]/g, '').trim();
+                if (index % 2 === 0) {
+                    const nextItem = array[index + 1];
+                    if (nextItem) {
+                        const nextName = nextItem.name.replace(/[^\w\s|]/g, '').trim();
+                        if ((name.length + nextName.length) <= 35) {
+                            acc.push(`${name} | ${nextName}`);
+                            return acc;
+                        }
+                    }
+                }
+                if (index % 2 === 0 || index === array.length - 1) {
+                    acc.push(name);
+                }
+                return acc;
+            }, [])
+            .map(text => `<div class="dish-item">${text}</div>`)
+            .join('');
+
+        const sidesHtml = categories.sides
+            .map(item => `<div class="dish-item">${item.name.replace(/[^\w\s|]/g, '').trim()}</div>`)
+            .join('');
+
+        const saladsHtml = categories.salads
+            .reduce((acc: string[], item) => {
+                const name = item.name.replace(/[^\w\s|]/g, '').trim();
+                const currentLine = acc[acc.length - 1] || '';
+                const newText = currentLine ? `${currentLine}      ${name}` : name;
+
+                if (newText.length <= 35) {
+                    acc[acc.length - 1] = newText;
+                } else {
+                    acc.push(name);
+                }
+                return acc;
+            }, [''])
+            .map(text => `<div class="dish-item">${text}</div>`)
+            .join('');
+
+        return `
+            <div class="quadrant quadrant-${quadrantIndex}">
+                ${riceAndBeans.rice.length > 0 ?
+                `<div class="dish-item">${riceAndBeans.rice.join(' | ')}</div>` : ''}
+                ${riceAndBeans.beans.length > 0 ?
+                `<div class="dish-item">${riceAndBeans.beans.join(' | ')}</div>` : ''}
+                ${meatsHtml}
+                ${sidesHtml}
+                ${saladsHtml}
+            </div>
+        `;
     };
 
     const htmlContent = `
@@ -24,21 +97,57 @@ const GeneratedMenuSection: React.FC<GeneratedMenuSectionProps> = ({ generatedMe
             <meta charset="utf-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <style>
-                body {
-                    font-family: Arial, sans-serif;
+                @page {
+                    size: A4;
                     margin: 0;
-                    padding: 20px;
-                    white-space: pre-wrap;
                 }
-                .menu-content {
+                body {
+                    font-family: Helvetica, Arial, sans-serif;
+                    margin: 0;
+                    padding: 0;
+                    width: 100%;
+                    height: 100vh;
+                }
+                .page {
+                    width: 595px;
+                    height: 842px;
+                    position: relative;
+                    padding: 30px;
+                    box-sizing: border-box;
+                }
+                .divider {
+                    position: absolute;
+                    left: 50%;
+                    top: 30px;
+                    bottom: 30px;
+                    width: 1px;
+                    background-color: #000;
+                }
+                .quadrant {
+                    width: calc(50% - 30px);
+                    padding: 0 15px;
+                    box-sizing: border-box;
+                }
+                .quadrant-0, .quadrant-1 {
+                    float: left;
+                }
+                .quadrant-2, .quadrant-3 {
+                    float: right;
+                }
+                .dish-item {
                     font-size: 14px;
                     line-height: 1.5;
+                    margin-bottom: 14px;
                 }
             </style>
         </head>
         <body>
-            <div class="menu-content">
-                ${generatedMenu}
+            <div class="page">
+                <div class="divider"></div>
+                ${generateQuadrantHTML(selectedDishes, 0)}
+                ${generateQuadrantHTML(selectedDishes, 1)}
+                ${generateQuadrantHTML(selectedDishes, 2)}
+                ${generateQuadrantHTML(selectedDishes, 3)}
             </div>
         </body>
         </html>
@@ -53,7 +162,7 @@ const GeneratedMenuSection: React.FC<GeneratedMenuSectionProps> = ({ generatedMe
                         style={[styles.actionButton, styles.pdfButton]}
                         onPress={() => setIsPDFModalVisible(true)}
                     >
-                        <Feather name="file-text" size={18} color={COLORS.white} />
+                        <MaterialIcons name="picture-as-pdf" size={24} color={COLORS.white} />
                         <Text style={styles.actionButtonText}>PDF</Text>
                     </TouchableOpacity>
                     <TouchableOpacity

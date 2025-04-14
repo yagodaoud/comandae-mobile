@@ -297,6 +297,7 @@ export default function MenuGenerationScreen() {
                     {dishes && state.selectedDishIds.size > 0 && state.generatedMenu && (
                         <GeneratedMenuSection
                             generatedMenu={state.generatedMenu}
+                            selectedDishes={dishes.filter(dish => state.selectedDishIds.has(dish._id))}
                         />
                     )}
 
