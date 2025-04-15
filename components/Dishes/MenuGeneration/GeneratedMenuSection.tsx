@@ -5,39 +5,75 @@ import { COLORS } from '@/constants/theme';
 import * as Clipboard from 'expo-clipboard';
 import { WebView } from 'react-native-webview';
 import { Doc } from '@/convex/_generated/dataModel';
+import { useQuery } from 'convex/react';
+import { api } from '@/convex/_generated/api';
 
 interface GeneratedMenuSectionProps {
     generatedMenu: string;
     selectedDishes: Doc<'dishes'>[];
 }
 
+interface CategoryMap {
+    rice_and_beans: Doc<'dishes'>[];
+    meats: Doc<'dishes'>[];
+    sides: Doc<'dishes'>[];
+    salads: Doc<'dishes'>[];
+}
+
+interface RiceAndBeans {
+    rice: string[];
+    beans: string[];
+}
+
 const GeneratedMenuSection: React.FC<GeneratedMenuSectionProps> = ({ generatedMenu, selectedDishes }) => {
     const [isPDFModalVisible, setIsPDFModalVisible] = useState(false);
+
+    // Get all dish categories from Convex
+    const dishCategories = useQuery(api.dishes.listCategories);
 
     const copyToClipboard = async () => {
         await Clipboard.setStringAsync(generatedMenu);
     };
 
     const generateQuadrantHTML = (dishes: Doc<'dishes'>[], quadrantIndex: number) => {
-        const categories = {
-            rice_and_beans: dishes.filter(d => d.categoryId === 'rice' || d.categoryId === 'beans'),
-            meats: dishes.filter(d => d.categoryId === 'meats'),
-            sides: dishes.filter(d => d.categoryId === 'sides'),
-            salads: dishes.filter(d => d.categoryId === 'salads')
+        if (!dishCategories) return '';
+
+        // Create a map of category IDs to their names
+        const categoryMap = new Map(dishCategories.map((cat: Doc<'dish_categories'>) => [cat._id, cat.name.toLowerCase()]));
+
+        // Filter dishes by category name
+        const categorizedDishes: CategoryMap = {
+            rice_and_beans: dishes.filter(d => {
+                const categoryName = categoryMap.get(d.categoryId);
+                return categoryName === 'arroz' || categoryName === 'feijão';
+            }),
+            meats: dishes.filter(d => {
+                const categoryName = categoryMap.get(d.categoryId);
+                return categoryName === 'carnes';
+            }),
+            sides: dishes.filter(d => {
+                const categoryName = categoryMap.get(d.categoryId);
+                return categoryName === 'acompanhamentos';
+            }),
+            salads: dishes.filter(d => {
+                const categoryName = categoryMap.get(d.categoryId);
+                return categoryName === 'saladas';
+            })
         };
 
-        const riceAndBeans = categories.rice_and_beans
-            .reduce((acc, item) => {
-                if (item.categoryId === 'rice') {
+        const riceAndBeans = categorizedDishes.rice_and_beans
+            .reduce((acc: RiceAndBeans, item: Doc<'dishes'>) => {
+                const categoryName = categoryMap.get(item.categoryId);
+                if (categoryName === 'arroz') {
                     acc.rice.push(item.name.replace(/[^\w\s|]/g, '').trim());
-                } else if (item.categoryId === 'beans') {
+                } else if (categoryName === 'feijão') {
                     acc.beans.push(item.name.replace(/[^\w\s|]/g, '').trim());
                 }
                 return acc;
-            }, { rice: [] as string[], beans: [] as string[] });
+            }, { rice: [], beans: [] });
 
-        const meatsHtml = categories.meats
-            .reduce((acc: string[], item, index, array) => {
+        const meatsHtml = categorizedDishes.meats
+            .reduce((acc: string[], item: Doc<'dishes'>, index: number, array: Doc<'dishes'>[]) => {
                 const name = item.name.replace(/[^\w\s|]/g, '').trim();
                 if (index % 2 === 0) {
                     const nextItem = array[index + 1];
@@ -57,12 +93,12 @@ const GeneratedMenuSection: React.FC<GeneratedMenuSectionProps> = ({ generatedMe
             .map(text => `<div class="dish-item">${text}</div>`)
             .join('');
 
-        const sidesHtml = categories.sides
+        const sidesHtml = categorizedDishes.sides
             .map(item => `<div class="dish-item">${item.name.replace(/[^\w\s|]/g, '').trim()}</div>`)
             .join('');
 
-        const saladsHtml = categories.salads
-            .reduce((acc: string[], item) => {
+        const saladsHtml = categorizedDishes.salads
+            .reduce((acc: string[], item: Doc<'dishes'>) => {
                 const name = item.name.replace(/[^\w\s|]/g, '').trim();
                 const currentLine = acc[acc.length - 1] || '';
                 const newText = currentLine ? `${currentLine}      ${name}` : name;
