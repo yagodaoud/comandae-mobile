@@ -1,349 +1,92 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, Alert, ScrollView } from 'react-native';
 import { Feather, MaterialIcons } from '@expo/vector-icons';
 import { COLORS } from '@/constants/theme';
 import * as Clipboard from 'expo-clipboard';
-import { WebView } from 'react-native-webview';
 import { Doc } from '@/convex/_generated/dataModel';
+import { generateMenuPDF } from '@/utils/pdfGenerator';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 import { useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 
 interface GeneratedMenuSectionProps {
-    generatedMenu: string;
     selectedDishes: Doc<'dishes'>[];
+    generatedMenu: string;
 }
 
-interface CategoryMap {
-    rice_and_beans: Doc<'dishes'>[];
-    meats: Doc<'dishes'>[];
-    sides: Doc<'dishes'>[];
-    salads: Doc<'dishes'>[];
-}
-
-interface RiceAndBeans {
-    rice: string[];
-    beans: string[];
-}
-
-const GeneratedMenuSection: React.FC<GeneratedMenuSectionProps> = ({ generatedMenu, selectedDishes }) => {
+export const GeneratedMenuSection: React.FC<GeneratedMenuSectionProps> = ({ selectedDishes, generatedMenu }) => {
+    const categories = useQuery(api.dishes.listCategories);
     const [isPDFModalVisible, setIsPDFModalVisible] = useState(false);
 
-    // Get all dish categories from Convex
-    const dishCategories = useQuery(api.dishes.listCategories);
+    const handleDownloadPDF = async () => {
+        try {
+            if (!categories) {
+                console.error('Categories not loaded yet');
+                return;
+            }
+
+            const pdfUri = await generateMenuPDF(selectedDishes, categories);
+            if (await Sharing.isAvailableAsync()) {
+                await Sharing.shareAsync(pdfUri);
+            } else {
+                console.error('Sharing is not available on this device');
+            }
+        } catch (error) {
+            console.error('Error generating PDF:', error);
+        }
+    };
 
     const copyToClipboard = async () => {
         await Clipboard.setStringAsync(generatedMenu);
     };
 
-    const generateQuadrantHTML = (dishes: Doc<'dishes'>[], quadrantIndex: number) => {
-        if (!dishCategories) return '';
-
-        // Create a map of category IDs to their names
-        const categoryMap = new Map(dishCategories.map((cat: Doc<'dish_categories'>) => [cat._id, cat.name.toLowerCase()]));
-
-        // Filter dishes by category name
-        const categorizedDishes: CategoryMap = {
-            rice_and_beans: dishes.filter(d => {
-                const categoryName = categoryMap.get(d.categoryId);
-                return categoryName === 'arroz' || categoryName === 'feijão';
-            }),
-            meats: dishes.filter(d => {
-                const categoryName = categoryMap.get(d.categoryId);
-                return categoryName === 'carnes';
-            }),
-            sides: dishes.filter(d => {
-                const categoryName = categoryMap.get(d.categoryId);
-                return categoryName === 'acompanhamentos';
-            }),
-            salads: dishes.filter(d => {
-                const categoryName = categoryMap.get(d.categoryId);
-                return categoryName === 'saladas';
-            })
-        };
-
-        const riceAndBeans = categorizedDishes.rice_and_beans
-            .reduce((acc: RiceAndBeans, item: Doc<'dishes'>) => {
-                const categoryName = categoryMap.get(item.categoryId);
-                if (categoryName === 'arroz') {
-                    acc.rice.push(item.name.replace(/[^\w\s|]/g, '').trim());
-                } else if (categoryName === 'feijão') {
-                    acc.beans.push(item.name.replace(/[^\w\s|]/g, '').trim());
-                }
-                return acc;
-            }, { rice: [], beans: [] });
-
-        const meatsHtml = categorizedDishes.meats
-            .reduce((acc: string[], item: Doc<'dishes'>, index: number, array: Doc<'dishes'>[]) => {
-                const name = item.name.replace(/[^\w\s|]/g, '').trim();
-                if (index % 2 === 0) {
-                    const nextItem = array[index + 1];
-                    if (nextItem) {
-                        const nextName = nextItem.name.replace(/[^\w\s|]/g, '').trim();
-                        if ((name.length + nextName.length) <= 35) {
-                            acc.push(`${name} | ${nextName}`);
-                            return acc;
-                        }
-                    }
-                }
-                if (index % 2 === 0 || index === array.length - 1) {
-                    acc.push(name);
-                }
-                return acc;
-            }, [])
-            .map(text => `<div class="dish-item">${text}</div>`)
-            .join('');
-
-        const sidesHtml = categorizedDishes.sides
-            .map(item => `<div class="dish-item">${item.name.replace(/[^\w\s|]/g, '').trim()}</div>`)
-            .join('');
-
-        const saladsHtml = categorizedDishes.salads
-            .reduce((acc: string[], item: Doc<'dishes'>) => {
-                const name = item.name.replace(/[^\w\s|]/g, '').trim();
-                const currentLine = acc[acc.length - 1] || '';
-                const newText = currentLine ? `${currentLine}      ${name}` : name;
-
-                if (newText.length <= 35) {
-                    acc[acc.length - 1] = newText;
-                } else {
-                    acc.push(name);
-                }
-                return acc;
-            }, [''])
-            .map(text => `<div class="dish-item">${text}</div>`)
-            .join('');
-
-        return `
-            <div class="quadrant quadrant-${quadrantIndex}">
-                ${riceAndBeans.rice.length > 0 ?
-                `<div class="dish-item">${riceAndBeans.rice.join(' | ')}</div>` : ''}
-                ${riceAndBeans.beans.length > 0 ?
-                `<div class="dish-item">${riceAndBeans.beans.join(' | ')}</div>` : ''}
-                ${meatsHtml}
-                ${sidesHtml}
-                ${saladsHtml}
-            </div>
-        `;
-    };
-
-    const htmlContent = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <style>
-                @page {
-                    size: A4;
-                    margin: 0;
-                }
-                body {
-                    font-family: Helvetica, Arial, sans-serif;
-                    margin: 0;
-                    padding: 0;
-                    width: 100%;
-                    height: 100vh;
-                }
-                .page {
-                    width: 595px;
-                    height: 842px;
-                    position: relative;
-                    padding: 30px;
-                    box-sizing: border-box;
-                }
-                .divider {
-                    position: absolute;
-                    left: 50%;
-                    top: 30px;
-                    bottom: 30px;
-                    width: 1px;
-                    background-color: #000;
-                }
-                .quadrant {
-                    width: calc(50% - 30px);
-                    padding: 0 15px;
-                    box-sizing: border-box;
-                }
-                .quadrant-0, .quadrant-1 {
-                    float: left;
-                }
-                .quadrant-2, .quadrant-3 {
-                    float: right;
-                }
-                .dish-item {
-                    font-size: 14px;
-                    line-height: 1.5;
-                    margin-bottom: 14px;
-                }
-            </style>
-        </head>
-        <body>
-            <div class="page">
-                <div class="divider"></div>
-                ${generateQuadrantHTML(selectedDishes, 0)}
-                ${generateQuadrantHTML(selectedDishes, 1)}
-                ${generateQuadrantHTML(selectedDishes, 2)}
-                ${generateQuadrantHTML(selectedDishes, 3)}
-            </div>
-        </body>
-        </html>
-    `;
-
     return (
-        <View style={styles.resultSection}>
-            <View style={styles.resultHeader}>
-                <Text style={styles.resultTitle}>Cardápio Gerado</Text>
-                <View style={styles.actions}>
-                    <TouchableOpacity
-                        style={[styles.actionButton, styles.pdfButton]}
-                        onPress={() => setIsPDFModalVisible(true)}
-                    >
-                        <MaterialIcons name="picture-as-pdf" size={24} color={COLORS.white} />
-                        <Text style={styles.actionButtonText}>PDF</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={[styles.actionButton, styles.copyButton]}
-                        onPress={copyToClipboard}
-                    >
-                        <Feather name="copy" size={18} color={COLORS.white} />
-                        <Text style={styles.actionButtonText}>Copiar</Text>
-                    </TouchableOpacity>
-                </View>
+        <View style={styles.container}>
+            <ScrollView style={styles.menuContainer}>
+                <Text style={styles.menuText}>{generatedMenu}</Text>
+            </ScrollView>
+            <View style={styles.buttonContainer}>
+                <TouchableOpacity style={styles.button} onPress={copyToClipboard}>
+                    <Text style={styles.buttonText}>Copiar Menu</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.button} onPress={handleDownloadPDF}>
+                    <Text style={styles.buttonText}>Baixar PDF</Text>
+                </TouchableOpacity>
             </View>
-            <View style={styles.generatedMenuContainer}>
-                <Text style={styles.generatedMenuText}>{generatedMenu}</Text>
-            </View>
-
-            <Modal
-                visible={isPDFModalVisible}
-                transparent
-                animationType="slide"
-                onRequestClose={() => setIsPDFModalVisible(false)}
-            >
-                <View style={styles.modalContainer}>
-                    <View style={styles.modalContent}>
-                        <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Visualização do PDF</Text>
-                            <TouchableOpacity
-                                onPress={() => setIsPDFModalVisible(false)}
-                                style={styles.closeButton}
-                            >
-                                <Feather name="x" size={24} color={COLORS.black} />
-                            </TouchableOpacity>
-                        </View>
-                        <View style={styles.webviewContainer}>
-                            <WebView
-                                source={{ html: htmlContent }}
-                                style={styles.webview}
-                            />
-                        </View>
-                    </View>
-                </View>
-            </Modal>
         </View>
     );
 };
 
 const styles = StyleSheet.create({
-    resultSection: {
-        backgroundColor: COLORS.white,
-        borderRadius: 10,
-        padding: 18,
-        marginTop: 10,
-        marginBottom: 25,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
-    },
-    resultHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 15,
-        paddingBottom: 10,
-        borderBottomWidth: 1,
-        borderBottomColor: '#f0f0f0',
-    },
-    resultTitle: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: COLORS.primary ?? '#333',
-    },
-    actions: {
-        flexDirection: 'row',
-        gap: 8,
-    },
-    actionButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 6,
-        paddingHorizontal: 12,
-        borderRadius: 20,
-        minWidth: 80,
-        justifyContent: 'center',
-    },
-    copyButton: {
-        backgroundColor: COLORS.secondary,
-    },
-    pdfButton: {
-        backgroundColor: COLORS.secondary,
-    },
-    actionButtonText: {
-        color: COLORS.white ?? '#fff',
-        fontSize: 13,
-        fontWeight: '500',
-        marginLeft: 5,
-    },
-    generatedMenuContainer: {
-        backgroundColor: '#f9f9f9',
-        borderRadius: 8,
-        padding: 15,
-        marginBottom: 15,
-        borderWidth: 1,
-        borderColor: '#eaeaea',
-    },
-    generatedMenuText: {
-        fontSize: 14,
-        lineHeight: 22,
-        color: COLORS.black ?? '#222',
-    },
-    modalContainer: {
+    container: {
         flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    modalContent: {
-        backgroundColor: COLORS.white,
-        width: '90%',
-        height: '85%',
-        borderRadius: 16,
-        overflow: 'hidden',
-    },
-    modalHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
         padding: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: COLORS.lightGray,
     },
-    modalTitle: {
-        fontSize: 18,
-        fontWeight: '600',
-        color: COLORS.black,
-    },
-    closeButton: {
-        padding: 8,
-    },
-    webviewContainer: {
+    menuContainer: {
         flex: 1,
-        backgroundColor: COLORS.background,
+        marginBottom: 16,
     },
-    webview: {
+    menuText: {
+        fontSize: 16,
+        lineHeight: 24,
+    },
+    buttonContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        gap: 16,
+    },
+    button: {
         flex: 1,
+        backgroundColor: COLORS.secondary,
+        padding: 16,
+        borderRadius: 8,
+        alignItems: 'center',
+    },
+    buttonText: {
+        color: 'white',
+        fontSize: 16,
+        fontWeight: 'bold',
     },
 });
 

@@ -1,4 +1,5 @@
 import * as FileSystem from 'expo-file-system';
+import { jsPDF } from 'jspdf';
 import { Doc } from '@/convex/_generated/dataModel';
 
 interface CategoryGroup {
@@ -8,102 +9,235 @@ interface CategoryGroup {
     salads: Doc<'dishes'>[];
 }
 
-const generateQuadrantHTML = (categories: CategoryGroup) => {
-    const riceAndBeans = categories.rice_and_beans
-        .reduce((acc, item) => {
-            if (item.categoryId === 'rice') {
-                acc.rice.push(item.name);
-            } else if (item.categoryId === 'beans') {
-                acc.beans.push(item.name);
-            }
-            return acc;
-        }, { rice: [] as string[], beans: [] as string[] });
+const PAGE_WIDTH = 595.0;
+const PAGE_HEIGHT = 842.0;
+const QUADRANT_WIDTH = PAGE_WIDTH / 2;
+const QUADRANT_HEIGHT = PAGE_HEIGHT / 2;
+const MARGIN = 30.0;
+const FONT_SIZE = 14;
+const LINE_HEIGHT = 14;
 
-    const meatsHtml = categories.meats
-        .reduce((acc: string[], item, index, array) => {
-            if (index % 2 === 0) {
-                const nextItem = array[index + 1];
-                if (nextItem && (item.name.length + nextItem.name.length) <= 35) {
-                    acc.push(`${item.name} | ${nextItem.name}`);
-                } else {
-                    acc.push(item.name);
-                }
-            } else if (index === array.length - 1) {
-                acc.push(item.name);
-            }
-            return acc;
-        }, [])
-        .map(text => `<div class="dish-item">${text}</div>`)
-        .join('');
+const findOptimalSaladCombinations = (items: Doc<'dishes'>[], doc: jsPDF, maxWidth: number) => {
+    const optimalCombinations: Doc<'dishes'>[][] = [];
+    const currentLine: Doc<'dishes'>[] = [];
+    let currentLineWidth = 0;
 
-    const sidesHtml = categories.sides
-        .map(item => `<div class="dish-item">${item.name}</div>`)
-        .join('');
+    for (const item of items) {
+        const itemWidth = doc.getTextWidth(item.name);
+        const spaceWidth = doc.getTextWidth('      ');
 
-    const saladsHtml = categories.salads
-        .reduce((acc: string[], item, index, array) => {
-            const currentLine = acc[acc.length - 1] || '';
-            const newText = currentLine ? `${currentLine}      ${item.name}` : item.name;
+        if (currentLine.length > 0 && (currentLineWidth + spaceWidth + itemWidth > maxWidth)) {
+            optimalCombinations.push([...currentLine]);
+            currentLine.length = 0;
+            currentLineWidth = 0;
+        }
 
-            if (newText.length <= 35) {
-                acc[acc.length - 1] = newText;
-            } else {
-                acc.push(item.name);
-            }
-            return acc;
-        }, [''])
-        .map(text => `<div class="dish-item">${text}</div>`)
-        .join('');
+        currentLine.push(item);
+        currentLineWidth += (currentLine.length > 1 ? spaceWidth : 0) + itemWidth;
+    }
 
-    return `
-        <div class="quadrant">
-            ${riceAndBeans.rice.length > 0 ?
-            `<div class="dish-item">${riceAndBeans.rice.join(' | ')}</div>` : ''}
-            ${riceAndBeans.beans.length > 0 ?
-            `<div class="dish-item">${riceAndBeans.beans.join(' | ')}</div>` : ''}
-            ${meatsHtml}
-            ${sidesHtml}
-            ${saladsHtml}
-        </div>
-    `;
+    if (currentLine.length > 0) {
+        optimalCombinations.push(currentLine);
+    }
+
+    return optimalCombinations;
 };
 
-export const generateMenuPDF = async (menuText: string) => {
+const writeCategory = (
+    doc: jsPDF,
+    categoryName: string,
+    items: Doc<'dishes'>[],
+    x: number,
+    y: number
+): number => {
+    if (!items || items.length === 0) return y;
+
+    let currentY = y - LINE_HEIGHT;
+
+    if (categoryName === 'Salads') {
+        const optimalCombinations = findOptimalSaladCombinations(
+            items,
+            doc,
+            QUADRANT_WIDTH - (2 * MARGIN) - 10
+        );
+
+        for (const combination of optimalCombinations) {
+            let text = '';
+            for (let i = 0; i < combination.length; i++) {
+                text += combination[i].name;
+                if (i < combination.length - 1) {
+                    text += '      ';
+                }
+            }
+            doc.text(text, x, currentY);
+            currentY -= LINE_HEIGHT;
+        }
+    } else if (categoryName === 'Meats') {
+        for (let i = 0; i < items.length; i++) {
+            let text = items[i].name;
+
+            if (i + 1 < items.length) {
+                const combinedText = `${items[i].name} | ${items[i + 1].name}`;
+                if (combinedText.length <= 35) {
+                    text = combinedText;
+                    i++;
+                }
+            }
+
+            doc.text(text, x, currentY);
+            currentY -= LINE_HEIGHT;
+        }
+    } else {
+        for (const item of items) {
+            doc.text(item.name, x, currentY);
+            currentY -= LINE_HEIGHT;
+        }
+    }
+
+    return currentY - 10;
+};
+
+const writeRiceAndBeansCategory = (
+    doc: jsPDF,
+    categories: CategoryGroup,
+    x: number,
+    y: number
+): number => {
+    const riceItems = categories.rice_and_beans.filter(item => item.categoryId === 'rice');
+    const beansItems = categories.rice_and_beans.filter(item => item.categoryId === 'beans');
+
+    let currentY = y - LINE_HEIGHT;
+
+    if (riceItems.length > 0) {
+        const riceText = riceItems.map(item => item.name).join(' | ');
+        doc.text(riceText, x, currentY);
+        currentY -= LINE_HEIGHT;
+    }
+
+    if (beansItems.length > 0) {
+        const beansText = beansItems.map(item => item.name).join(' | ');
+        doc.text(beansText, x, currentY);
+        currentY -= LINE_HEIGHT;
+    }
+
+    return currentY - 10;
+};
+
+const populateQuadrant = (
+    doc: jsPDF,
+    categories: CategoryGroup,
+    row: number,
+    col: number
+) => {
+    const x = col * QUADRANT_WIDTH + MARGIN;
+    const y = PAGE_HEIGHT - (row * QUADRANT_HEIGHT + MARGIN);
+
+    let currentY = writeRiceAndBeansCategory(doc, categories, x, y);
+    currentY = writeCategory(doc, 'Meats', categories.meats, x, currentY);
+    currentY = writeCategory(doc, 'Sides', categories.sides, x, currentY);
+    writeCategory(doc, 'Salads', categories.salads, x, currentY);
+};
+
+const drawQuadrants = (doc: jsPDF) => {
+    // Draw vertical divider
+    doc.setLineWidth(0.5);
+    doc.line(QUADRANT_WIDTH, MARGIN, QUADRANT_WIDTH, PAGE_HEIGHT - MARGIN);
+};
+
+export const generateMenuPDF = async (dishes: Doc<'dishes'>[], categories: Doc<'dish_categories'>[]) => {
     try {
-        const html = `
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <meta charset="utf-8">
-                <style>
-                    body {
-                        font-family: Arial, sans-serif;
-                        margin: 0;
-                        padding: 20px;
-                        white-space: pre-wrap;
-                    }
-                    .menu-content {
-                        font-size: 14px;
-                        line-height: 1.5;
-                    }
-                </style>
-            </head>
-            <body>
-                <div class="menu-content">
-                    ${menuText}
-                </div>
-            </body>
-            </html>
-        `;
-        ;
+        console.log('Starting PDF generation with dishes:', dishes);
+        console.log('Dishes count:', dishes.length);
+        console.log('First dish sample:', dishes[0]);
+        console.log('Categories:', categories);
 
-        // Move the file to a more permanent location if needed
-        const destinationUri = `${FileSystem.cacheDirectory}menu.pdf`;
+        if (!categories) {
+            throw new Error('Categories are required');
+        }
 
+        // Create a map of category IDs to their names
+        const categoryMap = new Map(categories.map(cat => [cat._id, cat.name.toLowerCase()]));
+        console.log('Category map:', Object.fromEntries(categoryMap));
 
-        return destinationUri;
+        const categorizedDishes: CategoryGroup = {
+            rice_and_beans: [],
+            meats: [],
+            sides: [],
+            salads: []
+        };
+
+        // Categorize dishes based on category names
+        dishes.forEach(dish => {
+            const categoryName = categoryMap.get(dish.categoryId);
+            console.log('Processing dish:', {
+                name: dish.name,
+                categoryId: dish.categoryId,
+                categoryName
+            });
+
+            if (!categoryName) {
+                console.log('Unknown category:', dish.categoryId);
+                return;
+            }
+
+            switch (categoryName) {
+                case 'arroz':
+                case 'feijão':
+                    categorizedDishes.rice_and_beans.push(dish);
+                    break;
+                case 'carnes':
+                    categorizedDishes.meats.push(dish);
+                    break;
+                case 'guarnições':
+                    categorizedDishes.sides.push(dish);
+                    break;
+                case 'saladas':
+                    categorizedDishes.salads.push(dish);
+                    break;
+                default:
+                    console.log('Unhandled category:', categoryName);
+            }
+        });
+
+        // Create PDF document
+        const doc = new jsPDF({
+            orientation: 'portrait',
+            unit: 'pt',
+            format: 'a4'
+        });
+
+        // Set font
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(FONT_SIZE);
+
+        // Draw quadrants
+        drawQuadrants(doc);
+
+        // Populate quadrants
+        populateQuadrant(doc, categorizedDishes, 0, 0);
+        populateQuadrant(doc, categorizedDishes, 0, 1);
+        populateQuadrant(doc, categorizedDishes, 1, 0);
+        populateQuadrant(doc, categorizedDishes, 1, 1);
+
+        // Save PDF to file
+        const pdfOutput = doc.output('datauristring');
+        const base64Data = pdfOutput.split(',')[1];
+        const pdfPath = `${FileSystem.cacheDirectory}menu.pdf`;
+
+        await FileSystem.writeAsStringAsync(pdfPath, base64Data, {
+            encoding: FileSystem.EncodingType.Base64
+        });
+
+        console.log('PDF generated successfully at:', pdfPath);
+        return pdfPath;
     } catch (error) {
-        console.error('Error generating PDF:', error);
+        console.error('Error in generateMenuPDF:', error);
+        if (error instanceof Error) {
+            console.error('Error details:', {
+                message: error.message,
+                stack: error.stack
+            });
+        }
         throw error;
     }
 };
