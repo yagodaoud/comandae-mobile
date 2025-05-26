@@ -66,7 +66,7 @@ export default function TabLayout() {
                                 {focused && <View style={styles.activeIndicator} />}
                             </TabBarIcon>
                         );
-                    } else if (route.name === 'menu-generation') {
+                    } else if (route.name === 'dishes') {
                         return (
                             <TabBarIcon>
                                 <MaterialCommunityIcons name="silverware-fork-knife" size={size} color={color} />
@@ -103,7 +103,7 @@ export default function TabLayout() {
                 }}
             />
             <Tabs.Screen
-                name='menu-generation'
+                name='dishes'
                 options={{
                     tabBarLabel: 'Cardápio',
                 }}

@@ -33,6 +33,13 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Permita $(PRODUCT_NAME) acessar suas fotos para gerar o cardápio.",
+          "cameraPermission": "Permita $(PRODUCT_NAME) acessar sua câmera para gerar o cardápio."
+        }
       ]
     ],
     "experiments": {

@@ -13,7 +13,7 @@ const TransparentHeader = ({ title, backButton = false, onBackPress = () => { } 
                 '/': 'Home',
                 '/stock': 'Estoque',
                 '/slips': 'Comandas',
-                '/menu-generation': 'Cardápio',
+                '/dishes': 'Cardápio',
                 '/payment': 'Pagamento'
             };
 

@@ -19,7 +19,7 @@ const CategoriesSection: React.FC = () => {
                     icon={<Feather name="book" size={24} color={COLORS.primary} />}
                     count="5 Pratos no Menu"
                     title="Cardápio"
-                    screenName="menu-generation"
+                    screenName="dishes"
                 />
                 <CategoryCard
                     icon={<Feather name="alert-triangle" size={24} color={COLORS.primary} />}

@@ -2,6 +2,9 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
+    "sourceMap": true,
+    "inlineSources": true,
+    "jsx": "react-native",
     "paths": {
       "@/*": [
         "./*"
@@ -12,6 +15,7 @@
     "**/*.ts",
     "**/*.tsx",
     ".expo/types/**/*.ts",
-    "expo-env.d.ts"
-, "components/ScreenWrapper.tsx"  ]
+    "expo-env.d.ts",
+    "components/ScreenWrapper.tsx"
+  ]
 }

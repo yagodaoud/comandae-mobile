@@ -12,9 +12,15 @@ interface CategoryChipsProps {
     categories: Category[];
     activeCategory: string | null;
     onCategorySelect: any;
+    onAddCategoryPress: () => void;
 }
 
-export const CategoryChip = ({ categories, activeCategory, onCategorySelect }: CategoryChipsProps) => {
+export const CategoryChip = ({
+    categories,
+    activeCategory,
+    onCategorySelect,
+    onAddCategoryPress
+}: CategoryChipsProps) => {
     return (
         <ScrollView
             horizontal
@@ -42,7 +48,10 @@ export const CategoryChip = ({ categories, activeCategory, onCategorySelect }: C
                     </Text>
                 </TouchableOpacity>
             ))}
-            <TouchableOpacity style={styles.addCategoryChip}>
+            <TouchableOpacity
+                style={styles.addCategoryChip}
+                onPress={onAddCategoryPress}
+            >
                 <Feather name="plus" size={16} color={COLORS.primary} />
                 <Text style={styles.addCategoryText}>Nova</Text>
             </TouchableOpacity>
@@ -91,4 +100,4 @@ const styles = StyleSheet.create({
         color: COLORS.primary,
         fontWeight: '500',
     },
-})
+});
