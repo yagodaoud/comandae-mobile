@@ -9,7 +9,6 @@ interface ImageManipulationOptions {
     compress?: number;
 }
 
-// OCR Processing optimized for Portuguese handwritten menus
 export const processImageWithOCR = async (imageUri: string): Promise<string[]> => {
     try {
         // 1. Enhanced image preprocessing

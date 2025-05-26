@@ -148,7 +148,6 @@ export default function Stock() {
 }
 
 const styles = StyleSheet.create({
-    // Copy remaining styles from the original component
     container: {
         flex: 1,
         backgroundColor: COLORS.background,

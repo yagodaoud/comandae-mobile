@@ -17,7 +17,7 @@ import { matchDishesWithOCR, processImageWithOCR, generateMenuContent } from '@/
 import { useAllDishes } from '../hooks/useDishes';
 
 const INITIAL_MENU_HEADER = "Bom dia!\n\nSegue o cardápio para marmitex:";
-const INITIAL_MENU_FOOTER = "📃Cardápio sujeito a alteração ao longo do expediente.\n📝 Para realizar seu pedido, mande a mensagem no privado da conta do Restaurante Cozinha & Cia.\n👨‍🍳Nosso tempero é nosso toque!\n🍝Self service | Marmitex | Marmita \n📍Seg. à Sex. - 10h45 às 14h - Sáb. - 10h45 às 14h30\n📞3403-7869\n📞98141-4737 \n❤Amamos a Cozinha & a Sua CIA";
+const INITIAL_MENU_FOOTER = "📃Cardápio sujeito a alteração ao longo do expediente.\n📝 Para realizar seu pedido, mande a mensagem no privado da conta do Restaurante Cozinha & Cia.\n👨‍🍳Nosso tempero é nosso toque!\n🍝Self service | Marmitex \n📍Seg. a Sáb. - 11h às 14h\n📞3403-7869\n📞98141-4737 \n❤Amamos a Cozinha & a Sua CIA";
 
 interface State {
     imageUri: string | null;
@@ -82,7 +82,6 @@ export default function MenuGenerationScreen() {
     const { dishes, isLoading } = useAllDishes();
 
     useEffect(() => {
-        // No need to manually clean up React refs
         return () => { };
     }, []);
 
@@ -178,7 +177,6 @@ export default function MenuGenerationScreen() {
             const extractedText = await processImageWithOCR(state.imageUri);
             const matchedDishes = matchDishesWithOCR(extractedText, dishes || []);
 
-            // Initially select only the matched dishes
             setState(prev => ({
                 ...prev,
                 isProcessing: false,
@@ -206,7 +204,6 @@ export default function MenuGenerationScreen() {
     }, []);
 
     const handleGenerateMenu = useCallback(() => {
-        // Get the selected dishes from all dishes
         const selectedDishes = dishes?.filter(dish => state.selectedDishIds.has(dish._id)) || [];
         const menuContent = generateMenuContent(selectedDishes);
         const fullMenu = `${state.headerText}\n\n${menuContent}\n${state.footerText}`;
