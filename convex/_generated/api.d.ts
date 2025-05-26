@@ -16,6 +16,7 @@ import type {
 import type * as dishes from "../dishes.js";
 import type * as http from "../http.js";
 import type * as menu from "../menu.js";
+import type * as products from "../products.js";
 import type * as users from "../users.js";
 
 /**
@@ -30,6 +31,7 @@ declare const fullApi: ApiFromModules<{
   dishes: typeof dishes;
   http: typeof http;
   menu: typeof menu;
+  products: typeof products;
   users: typeof users;
 }>;
 export declare const api: FilterApi<

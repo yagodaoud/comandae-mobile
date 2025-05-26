@@ -3,69 +3,96 @@ import { View, ScrollView, Platform, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS } from '@/constants/theme';
 import TransparentHeader from '@/components/TransparentHeader';
-import { SearchBar } from '@/components/SearchBar';
+import SearchBar from './SearchBar';
 import StatsCard from './StatsCard';
 import ViewToggle from './ViewToggle';
 import FilterChips from './FilterChips';
 import CategoryCard from './CategoryCard';
 import ProductCard from './ProductCard';
 import EmptyState from './EmptyState';
+import AddItemModal from './AddItemModal';
+import AddProductModal from './AddProductModal';
+import AddCategoryModal from './AddCategoryModal';
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import { Id, Doc } from "@/convex/_generated/dataModel";
 
-const initialCategories = [
-    { id: '1', name: 'Bebidas', products: 12, image: 'https://placeholder.com/drinks' },
-    { id: '2', name: 'Pratos Principais', products: 8, image: 'https://placeholder.com/main' },
-    { id: '3', name: 'Sobremesas', products: 6, image: 'https://placeholder.com/desserts' },
-    { id: '4', name: 'Aperitivos', products: 9, image: 'https://placeholder.com/appetizers' },
-];
-
-const initialProducts = [
-    { id: '1', name: 'Coca-Cola', category: 'Bebidas', price: '8,90', stock: 24, image: 'https://placeholder.com/coke' },
-    { id: '2', name: 'Água Mineral', category: 'Bebidas', price: '4,50', stock: 36, image: 'https://placeholder.com/water' },
-    { id: '3', name: 'Filé Mignon', category: 'Pratos Principais', price: '62,90', stock: 8, image: 'https://placeholder.com/steak' },
-    { id: '4', name: 'Pudim', category: 'Sobremesas', price: '12,90', stock: 12, image: 'https://placeholder.com/pudding' },
-    { id: '5', name: 'Batata Frita', category: 'Aperitivos', price: '18,90', stock: 20, image: 'https://placeholder.com/fries' },
-    { id: '6', name: 'Salada Caesar', category: 'Pratos Principais', price: '32,50', stock: 6, image: 'https://placeholder.com/caesar' },
-    { id: '7', name: 'Cheesecake', category: 'Sobremesas', price: '15,90', stock: 7, image: 'https://placeholder.com/cheesecake' },
-    { id: '8', name: 'Suco de Laranja', category: 'Bebidas', price: '9,90', stock: 18, image: 'https://placeholder.com/orange-juice' },
-];
+type Product = Doc<"products">;
+type Category = Doc<"product_categories">;
 
 export default function Stock() {
     const insets = useSafeAreaInsets();
-    const [categories, setCategories] = useState(initialCategories);
-    const [products, setProducts] = useState(initialProducts);
     const [searchQuery, setSearchQuery] = useState('');
     const [activeView, setActiveView] = useState<'products' | 'categories'>('products');
     const [selectedCategory, setSelectedCategory] = useState('all');
+    const [showAddItemModal, setShowAddItemModal] = useState(false);
+    const [showAddProductModal, setShowAddProductModal] = useState(false);
+    const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
+    const [editingCategory, setEditingCategory] = useState<Category | undefined>();
+    const [editingProduct, setEditingProduct] = useState<Product | undefined>();
+
+    const products = useQuery(api.products.getProducts) ?? [];
+    const categories = useQuery(api.products.getProductCategories) ?? [];
 
     const bottomPadding = 60 + (Platform.OS === 'ios' ? insets.bottom : 0);
 
-    const filteredProducts = products.filter(product => {
+    // Sort categories by display order
+    const sortedCategories = [...categories].sort((a, b) =>
+        (a.displaOrder ?? 0) - (b.displaOrder ?? 0)
+    );
+
+    const filteredProducts = products.filter((product: Product) => {
         const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase());
         if (selectedCategory === 'all') return matchesSearch;
-        return matchesSearch && product.category === selectedCategory;
+        const category = categories.find((c: Category) => c._id === product.categoryId);
+        return matchesSearch && category?.name === selectedCategory;
     });
 
     const stats = {
         totalProducts: products.length,
         totalCategories: categories.length,
-        lowStock: products.filter(p => p.stock < 10).length,
-        totalValue: products.reduce((sum, product) =>
-            sum + (parseFloat(product.price.replace(',', '.')) * product.stock), 0).toFixed(2).replace('.', ','),
+        lowStock: products.filter((p: Product) => p.stock < 10).length,
+        totalValue: products.reduce((sum: number, product: Product) =>
+            sum + (product.price * product.stock), 0).toFixed(2).replace('.', ','),
     };
 
     const handleAddItem = () => {
-        console.log(`Add new ${activeView === 'products' ? 'product' : 'category'}`);
+        setShowAddItemModal(true);
+    };
+
+    const handleProductAdded = () => {
+        setShowAddProductModal(false);
+        setEditingProduct(undefined);
+    };
+
+    const handleCategoryAdded = () => {
+        setShowAddCategoryModal(false);
+        setEditingCategory(undefined);
+    };
+
+    const handleEditCategory = (category: Category) => {
+        setEditingCategory(category);
+        setShowAddCategoryModal(true);
+    };
+
+    const handleEditProduct = (product: Product) => {
+        setEditingProduct(product);
+        setShowAddProductModal(true);
     };
 
     const renderContent = () => {
         if (activeView === 'products') {
             return filteredProducts.length > 0 ? (
                 <View style={styles.productsGrid}>
-                    {filteredProducts.map(product => (
+                    {filteredProducts.map((product: Product) => (
                         <ProductCard
-                            key={product.id}
-                            {...product}
-                            onPress={() => console.log('View product', product.id)}
+                            key={product._id}
+                            name={product.name}
+                            category={categories.find((c: Category) => c._id === product.categoryId)?.name ?? ''}
+                            price={product.price.toString()}
+                            stock={product.stock}
+                            image={product.image}
+                            onPress={() => handleEditProduct(product)}
                         />
                     ))}
                 </View>
@@ -77,21 +104,19 @@ export default function Stock() {
             );
         }
 
-        const filteredCategories = categories.filter(category =>
+        const filteredCategories = sortedCategories.filter((category: Category) =>
             category.name.toLowerCase().includes(searchQuery.toLowerCase())
         );
 
         return filteredCategories.length > 0 ? (
             <View style={styles.categoriesGrid}>
-                {filteredCategories.map(category => (
+                {filteredCategories.map((category: Category) => (
                     <CategoryCard
-                        key={category.id}
-                        {...category}
-                        productTotal={products.filter(p => p.category === category.name).length}
-                        onPress={() => {
-                            setActiveView('products');
-                            setSelectedCategory(category.name);
-                        }}
+                        key={category._id}
+                        name={category.name}
+                        productTotal={products.filter((p: Product) => p.categoryId === category._id).length}
+                        image="https://placeholder.com/category"
+                        onPress={() => handleEditCategory(category)}
                     />
                 ))}
             </View>
@@ -127,7 +152,7 @@ export default function Stock() {
 
             {activeView === 'products' && (
                 <FilterChips
-                    categories={categories}
+                    categories={sortedCategories.map((c: Category) => ({ id: c._id, name: c.name }))}
                     selectedCategory={selectedCategory}
                     onSelectCategory={setSelectedCategory}
                 />
@@ -143,6 +168,33 @@ export default function Stock() {
             >
                 {renderContent()}
             </ScrollView>
+
+            <AddItemModal
+                visible={showAddItemModal}
+                onClose={() => setShowAddItemModal(false)}
+                onSelectProduct={() => setShowAddProductModal(true)}
+                onSelectCategory={() => setShowAddCategoryModal(true)}
+            />
+
+            <AddProductModal
+                visible={showAddProductModal}
+                onClose={() => {
+                    setShowAddProductModal(false);
+                    setEditingProduct(undefined);
+                }}
+                onProductAdded={handleProductAdded}
+                editingProduct={editingProduct}
+            />
+
+            <AddCategoryModal
+                visible={showAddCategoryModal}
+                onClose={() => {
+                    setShowAddCategoryModal(false);
+                    setEditingCategory(undefined);
+                }}
+                onCategoryAdded={handleCategoryAdded}
+                editingCategory={editingCategory}
+            />
         </View>
     );
 }
