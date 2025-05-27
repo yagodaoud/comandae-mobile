@@ -1,8 +1,12 @@
-import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, Platform } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, StyleSheet, ScrollView, Platform, BackHandler } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { COLORS } from '@/constants/theme';
+import { useQuery, useMutation } from 'convex/react';
+import { api } from '@/convex/_generated/api';
+import { Id, Doc } from '@/convex/_generated/dataModel';
+import { useRouter } from 'expo-router';
 import TransparentHeader from '@/components/TransparentHeader';
 import { OrderSummary } from './OrderSummary';
 import { PaymentMethodSelector } from './PaymentMethodSelector';
@@ -12,37 +16,7 @@ import { SearchBar } from '@/components/SearchBar';
 import { FilterChips } from '@/components/FilterChips';
 import { EmptyState } from '@/components/EmptyState';
 import { ActionButtons } from '@/components/ActionButtons';
-
-type Comanda = {
-    id: string;
-    table: string;
-    items: number;
-    total: string;
-    time: string;
-    status: 'open' | 'closed';
-};
-
-type OrderData = {
-    id: string;
-    table: string;
-    items: {
-        id: string;
-        name: string;
-        quantity: number;
-        price: string;
-        total: string;
-    }[];
-    subtotal: string;
-    tax: string;
-    total: string;
-};
-
-const initialComandas: Comanda[] = [
-    { id: '1', table: 'Mesa 1', items: 4, total: '124,90', time: '15min', status: 'open' },
-    { id: '2', table: 'Mesa 3', items: 6, total: '198,50', time: '42min', status: 'closed' },
-    { id: '3', table: 'Mesa 7', items: 8, total: '345,20', time: '1h 12min', status: 'closed' },
-    { id: '4', table: 'Mesa 9', items: 2, total: '64,80', time: '7min', status: 'open' },
-];
+import ViewSlipModal from './ViewSlipModal';
 
 const paymentMethods = [
     { id: 'cash', name: 'Dinheiro', icon: 'dollar-sign' },
@@ -55,76 +29,149 @@ const FILTER_OPTIONS = [
     { id: 'open', label: 'Em Aberto', icon: 'clock' },
     { id: 'closed', label: 'Fechadas', icon: 'check-circle' },
     { id: 'all', label: 'Todos', icon: 'list' }
-];
+] as const;
 
-const generateOrderData = (comanda: Comanda): OrderData => ({
-    id: comanda.id,
-    table: comanda.table,
-    items: [
-        { id: '1', name: 'Item 1', quantity: 1, price: '50,00', total: '50,00' },
-        { id: '2', name: 'Item 2', quantity: 2, price: '25,00', total: '50,00' },
-    ],
-    subtotal: '100,00',
-    tax: '10,00',
-    total: comanda.total,
-});
+type FilterOption = typeof FILTER_OPTIONS[number]['id'];
 
-const calculateTipAmount = (total: string, percentage: number): string => {
-    const amount = parseFloat(total.replace(',', '.')) * (percentage / 100);
-    return amount.toFixed(2).replace('.', ',');
-};
+interface SlipItem {
+    productId: Id<"products">;
+    quantity: number;
+    customPrice?: number;
+}
 
-const calculateGrandTotal = (total: string, tipAmount: string): string => {
-    const result = parseFloat(total.replace(',', '.')) + parseFloat(tipAmount.replace(',', '.'));
-    return result.toFixed(2).replace('.', ',');
-};
+interface FormattedOrderItem {
+    id: string;
+    name: string;
+    quantity: number;
+    price: string;
+    total: string;
+}
 
-const calculateChange = (cashAmount: string, grandTotal: string): string => {
-    if (!cashAmount) return '0,00';
-    const change = parseFloat(cashAmount.replace(',', '.')) - parseFloat(grandTotal.replace(',', '.'));
-    return change > 0 ? change.toFixed(2).replace('.', ',') : '0,00';
-};
+type Slip = Doc<"slips">;
 
-export default function Payment({ navigation }) {
+export default function Payment() {
+    const router = useRouter();
     const insets = useSafeAreaInsets();
     const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('credit');
     const [tipPercentage, setTipPercentage] = useState(10);
     const [cashAmount, setCashAmount] = useState('');
-    const [selectedSlip, setSelectedSlip] = useState<Comanda | null>(null);
+    const [selectedSlip, setSelectedSlip] = useState<{ id: Id<"slips">; table: string; total: number; items: any[] } | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
-    const [activeFilter, setActiveFilter] = useState('open');
+    const [activeFilter, setActiveFilter] = useState<FilterOption>('open');
 
-    const filteredComandas = initialComandas.filter(comanda => {
-        const matchesSearch = comanda.table.toLowerCase().includes(searchQuery.toLowerCase());
-        if (activeFilter === 'all') return matchesSearch;
-        return matchesSearch && comanda.status === activeFilter;
-    });
+    const [isViewModalVisible, setIsViewModalVisible] = useState(false);
+    const [viewingSlip, setViewingSlip] = useState<Slip | null>(null);
 
-    const tipAmount = selectedSlip ? calculateTipAmount(selectedSlip.total, tipPercentage) : '0,00';
-    const grandTotal = selectedSlip ? calculateGrandTotal(selectedSlip.total, tipAmount) : '0,00';
+    const slips = useQuery(api.slips.getSlipsForPayment, {
+        isOpen: activeFilter === 'all' ? undefined : activeFilter === 'open',
+        searchQuery: searchQuery || undefined,
+    }) ?? [];
+
+    const products = useQuery(api.products.getProducts) ?? [];
+
+    const updatePayment = useMutation(api.slips.updateSlipPayment);
+
+    const tipAmount = selectedSlip ? (selectedSlip.total * (tipPercentage / 100)) : 0;
+    const grandTotal = selectedSlip ? (selectedSlip.total + tipAmount) : 0;
+
+    const formatOrderItems = (items: SlipItem[], products: any[]): FormattedOrderItem[] => {
+        return items.map(item => {
+            const product = products.find(p => p._id === item.productId);
+            if (!product) return null;
+
+            const price = item.customPrice ?? product.price;
+            const total = price * item.quantity;
+
+            return {
+                id: item.productId,
+                name: product.name,
+                quantity: item.quantity,
+                price: price.toFixed(2),
+                total: total.toFixed(2),
+            };
+        }).filter(Boolean) as FormattedOrderItem[];
+    };
+
+    useEffect(() => {
+        const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+            if (selectedSlip) {
+                setSelectedSlip(null);
+                return true;
+            } else if (viewingSlip) {
+                setViewingSlip(null);
+                setIsViewModalVisible(false);
+                return true;
+            }
+            return false;
+        });
+
+        return () => backHandler.remove();
+    }, [selectedSlip, viewingSlip]);
 
     const handleBackPress = () => {
-        selectedSlip ? setSelectedSlip(null) : navigation.goBack();
+        if (selectedSlip) {
+            setSelectedSlip(null);
+        } else if (viewingSlip) {
+            setViewingSlip(null);
+            setIsViewModalVisible(false);
+        } else {
+            router.back();
+        }
+    };
+
+    const handlePayment = async () => {
+        if (!selectedSlip) return;
+
+        try {
+            await updatePayment({
+                id: selectedSlip.id,
+                paymentMethod: selectedPaymentMethod,
+                tipAmount,
+                cashAmount: selectedPaymentMethod === 'cash' ? parseFloat(cashAmount.replace(',', '.')) : undefined,
+            });
+            setSelectedSlip(null);
+        } catch (error) {
+            console.error('Error processing payment:', error);
+            // TODO: Show error message to user
+        }
+    };
+
+    const handleViewModalClose = () => {
+        setIsViewModalVisible(false);
+        setViewingSlip(null);
     };
 
     if (selectedSlip) {
-        const orderData = generateOrderData(selectedSlip);
+        const formattedItems = formatOrderItems(selectedSlip.items, products);
 
         return (
-            <View style={styles.container}>
+            <View style={[styles.container, { paddingBottom: insets.bottom }]}>
                 <TransparentHeader
                     title={selectedSlip.table}
                     backButton={true}
                     onBackPress={handleBackPress}
                 />
 
-                <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollViewContent}>
+                <ScrollView
+                    style={styles.scrollView}
+                    contentContainerStyle={[
+                        styles.scrollViewContent,
+                        { paddingBottom: 300 }
+                    ]}
+                >
                     <View style={styles.section}>
                         <OrderSummary
-                            orderData={orderData}
+                            orderData={{
+                                id: selectedSlip.id,
+                                table: selectedSlip.table,
+                                items: formattedItems,
+                                subtotal: selectedSlip.total.toFixed(2),
+                                tax: '0.00',
+                                total: selectedSlip.total.toFixed(2),
+                            }}
                             tipPercentage={tipPercentage}
-                            tipAmount={tipAmount}
-                            grandTotal={grandTotal}
+                            tipAmount={tipAmount.toFixed(2)}
+                            grandTotal={grandTotal.toFixed(2)}
                         />
                     </View>
 
@@ -142,27 +189,26 @@ export default function Payment({ navigation }) {
                             onSelectPaymentMethod={setSelectedPaymentMethod}
                             cashAmount={cashAmount}
                             onCashAmountChange={setCashAmount}
-                            grandTotal={grandTotal}
+                            grandTotal={grandTotal.toFixed(2)}
+                        />
+                    </View>
+
+                    <View style={styles.actionButtonsContainer}>
+                        <ActionButtons
+                            cancelText="Voltar"
+                            confirmText="Finalizar Pagamento"
+                            onCancel={() => setSelectedSlip(null)}
+                            onConfirm={handlePayment}
+                            insets={insets}
                         />
                     </View>
                 </ScrollView>
-
-                <ActionButtons
-                    cancelText="Voltar"
-                    confirmText="Finalizar Pagamento"
-                    onCancel={() => setSelectedSlip(null)}
-                    onConfirm={() => {
-                        console.log('Payment confirmed');
-                        setSelectedSlip(null);
-                    }}
-                    insets={insets}
-                />
             </View>
         );
     }
 
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, { paddingBottom: insets.bottom }]}>
             <TransparentHeader title="Pagamento" />
 
             <SearchBar
@@ -173,8 +219,8 @@ export default function Payment({ navigation }) {
 
             <FilterChips
                 activeFilter={activeFilter}
-                onFilterChange={setActiveFilter}
-                filters={FILTER_OPTIONS}
+                onFilterChange={(filter) => setActiveFilter(filter as FilterOption)}
+                filters={[...FILTER_OPTIONS] as any}
             />
 
             <ScrollView
@@ -184,25 +230,44 @@ export default function Payment({ navigation }) {
                     { paddingBottom: 60 + (Platform.OS === 'ios' ? insets.bottom : 0) }
                 ]}
             >
-                {filteredComandas.map(comanda => (
+                {slips.map(slip => (
                     <SlipCard
-                        key={comanda.id}
-                        table={comanda.table}
-                        items={comanda.items}
-                        total={comanda.total}
-                        time={comanda.time}
-                        status={comanda.status}
-                        onPress={() => setSelectedSlip(comanda)}
+                        key={slip._id}
+                        table={slip.table}
+                        items={slip.items.length}
+                        total={slip.total.toFixed(2)}
+                        time={slip.time}
+                        status={slip.isOpen ? 'open' : 'closed'}
+                        onPress={() => {
+                            if (slip.isOpen) {
+                                setSelectedSlip({
+                                    id: slip._id,
+                                    table: slip.table,
+                                    total: slip.total,
+                                    items: slip.items,
+                                });
+                            } else {
+                                setViewingSlip(slip);
+                                setIsViewModalVisible(true);
+                            }
+                        }}
                     />
                 ))}
 
-                {filteredComandas.length === 0 && (
+                {slips.length === 0 && (
                     <EmptyState
                         icon={<Feather name="clipboard" size={48} color="#ccc" />}
                         message="Nenhuma comanda encontrada"
                     />
                 )}
             </ScrollView>
+
+            <ViewSlipModal
+                visible={isViewModalVisible}
+                onClose={handleViewModalClose}
+                slip={viewingSlip}
+                products={products}
+            />
         </View>
     );
 }
@@ -221,5 +286,19 @@ const styles = StyleSheet.create({
     },
     section: {
         marginBottom: 24,
+    },
+    actionButtonsContainer: {
+        marginTop: 24,
+        marginBottom: 16,
+        backgroundColor: COLORS.background,
+        borderTopWidth: 1,
+        borderTopColor: '#f0f0f0',
+        paddingTop: 16,
+        paddingHorizontal: 16,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 3,
+        elevation: 5,
     },
 });

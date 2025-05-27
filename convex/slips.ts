@@ -7,9 +7,10 @@ export const getSlips = query({
         status: v.optional(v.union(v.literal("recent"), v.literal("medium"), v.literal("long"))),
         searchQuery: v.optional(v.string()),
         table: v.optional(v.string()),
+        isOpen: v.optional(v.boolean()),
     },
     handler: async (ctx, args) => {
-        const { status, searchQuery, table } = args;
+        const { status, searchQuery, table, isOpen } = args;
 
         let slips = await ctx.db
             .query("slips")
@@ -24,6 +25,11 @@ export const getSlips = query({
         // Filter by table if provided
         if (table) {
             slips = slips.filter((slip) => slip.table === table);
+        }
+
+        // Filter by isOpen if provided
+        if (isOpen !== undefined) {
+            slips = slips.filter((slip) => (slip.isOpen ?? true) === isOpen);
         }
 
         // Filter by search query if provided
@@ -96,6 +102,7 @@ export const createSlip = mutation({
             items,
             total,
             status: "recent",
+            isOpen: true,
             lastUpdateTime: now,
         });
 
@@ -103,33 +110,73 @@ export const createSlip = mutation({
     },
 });
 
-export const updateSlip = mutation({
+export const getSlipsForPayment = query({
     args: {
-        id: v.id("slips"),
-        items: v.array(v.object({
-            productId: v.id("products"),
-            quantity: v.number(),
-            customPrice: v.optional(v.number()),
-        })),
+        isOpen: v.optional(v.boolean()),
+        searchQuery: v.optional(v.string()),
     },
     handler: async (ctx, args) => {
-        const { id, items } = args;
+        const { isOpen, searchQuery } = args;
 
-        // Calculate total
-        let total = 0;
-        for (const item of items) {
-            const product = await ctx.db.get(item.productId);
-            if (!product) continue;
+        let slips = await ctx.db
+            .query("slips")
+            .filter((q) => q.neq(q.field("status"), null))
+            .collect();
 
-            const price = item.customPrice ?? product.price;
-            total += price * item.quantity;
+        // Filter by isOpen if provided
+        if (isOpen !== undefined) {
+            slips = slips.filter((slip) => {
+                // If isOpen is not set, consider it as open
+                const slipIsOpen = slip.isOpen ?? true;
+                return slipIsOpen === isOpen;
+            });
         }
 
+        // Filter by search query if provided
+        if (searchQuery) {
+            const query = searchQuery.toLowerCase();
+            slips = slips.filter((slip) =>
+                slip.table.toLowerCase().includes(query)
+            );
+        }
+
+        // Calculate time differences
         const now = Date.now();
+        return slips.map((slip) => {
+            const timeDiff = now - slip.lastUpdateTime;
+            return {
+                ...slip,
+                time: formatTimeDiff(timeDiff),
+                // If isOpen is not set, consider it as open
+                isOpen: slip.isOpen ?? true,
+            };
+        });
+    },
+});
+
+export const updateSlipPayment = mutation({
+    args: {
+        id: v.id("slips"),
+        paymentMethod: v.string(),
+        tipAmount: v.number(),
+        cashAmount: v.optional(v.number()),
+    },
+    handler: async (ctx, args) => {
+        const { id, paymentMethod, tipAmount, cashAmount } = args;
+
+        // Calculate final total with tip
+        const slip = await ctx.db.get(id);
+        if (!slip) throw new Error("Slip not found");
+
+        const finalTotal = slip.total + tipAmount;
+
         await ctx.db.patch(id, {
-            items,
-            total,
-            lastUpdateTime: now,
+            isOpen: false,
+            paymentMethod,
+            tipAmount,
+            cashAmount,
+            finalTotal,
+            paymentTime: Date.now(),
         });
 
         return id;

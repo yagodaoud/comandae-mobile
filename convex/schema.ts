@@ -92,10 +92,17 @@ export default defineSchema({
         })),
         total: v.number(),
         status: v.union(v.literal("recent"), v.literal("medium"), v.literal("long")),
+        isOpen: v.optional(v.boolean()),
         lastUpdateTime: v.number(),
+        paymentMethod: v.optional(v.string()),
+        tipAmount: v.optional(v.number()),
+        cashAmount: v.optional(v.number()),
+        finalTotal: v.optional(v.number()),
+        paymentTime: v.optional(v.number()),
     })
         .index("by_status", ["status"])
-        .index("by_table", ["table"]),
+        .index("by_table", ["table"])
+        .index("by_is_open", ["isOpen"]),
 
     pix: defineTable({
         _creationTime: v.number(),

@@ -7,7 +7,6 @@ import TransparentHeader from '@/components/TransparentHeader';
 import { ComandaCard } from './ComandaCard';
 import { SearchBar } from '@/components/SearchBar';
 import { StatsCard } from './StatsCard';
-import { FilterChips } from './FilterChips';
 import { EmptyState } from './EmptyState';
 import { QuickActionButton } from './QuickActionButton';
 import { useQuery, useMutation } from 'convex/react';
@@ -18,50 +17,53 @@ import { Id } from '@/convex/_generated/dataModel';
 export default function Slips() {
     const insets = useSafeAreaInsets();
     const [searchQuery, setSearchQuery] = useState('');
-    const [activeFilter, setActiveFilter] = useState('all');
     const [isAddModalVisible, setIsAddModalVisible] = useState(false);
     const [editingSlip, setEditingSlip] = useState<{ id: Id<"slips">; table: string } | null>(null);
 
     const bottomPadding = 60 + (Platform.OS === 'ios' ? insets.bottom : 0);
 
     const slips = useQuery(api.slips.getSlips, {
-        status: activeFilter === 'all' ? undefined : activeFilter,
+        isOpen: true,
         searchQuery: searchQuery || undefined,
     }) ?? [];
 
     const updateSlipStatus = useMutation(api.slips.updateSlipStatus);
 
-    // Update slip statuses periodically
     useEffect(() => {
         if (!slips.length) return;
 
         const updateStatuses = async () => {
             for (const slip of slips) {
-                const timeDiff = Date.now() - slip.lastUpdateTime;
-                let newStatus = slip.status;
+                if (slip.isOpen) {
+                    const timeDiff = Date.now() - slip.lastUpdateTime;
+                    let newStatus = slip.status;
 
-                if (timeDiff > 3600000) { // More than 1 hour
-                    newStatus = "long";
-                } else if (timeDiff > 1800000) { // More than 30 minutes
-                    newStatus = "medium";
-                } else {
-                    newStatus = "recent";
-                }
+                    if (timeDiff > 3600000) {
+                        newStatus = "long";
+                    } else if (timeDiff > 1800000) {
+                        newStatus = "medium";
+                    } else {
+                        newStatus = "recent";
+                    }
 
-                if (newStatus !== slip.status) {
-                    await updateSlipStatus({ id: slip._id, status: newStatus });
+                    if (newStatus !== slip.status) {
+                        const currentSlip = slips.find(s => s._id === slip._id);
+                        if (currentSlip) {
+                            await updateSlipStatus({ id: slip._id, status: newStatus });
+                        }
+                    }
                 }
             }
         };
 
-        const interval = setInterval(updateStatuses, 60000); // Check every minute
+        const interval = setInterval(updateStatuses, 60000);
         return () => clearInterval(interval);
     }, [slips, updateSlipStatus]);
 
     const stats = {
         total: slips.length,
         totalValue: slips.reduce((sum, slip) => sum + slip.total, 0).toFixed(2).replace('.', ','),
-        long: slips.filter(s => s.status === 'long').length,
+        long: slips.filter(s => s.status === 'long' && s.isOpen).length,
     };
 
     const handleSlipPress = (slip: typeof slips[0]) => {
@@ -93,11 +95,6 @@ export default function Slips() {
                 longCount={stats.long}
             />
 
-            <FilterChips
-                activeFilter={activeFilter}
-                onFilterChange={setActiveFilter}
-            />
-
             <ScrollView
                 style={styles.scrollView}
                 contentContainerStyle={{
@@ -108,22 +105,31 @@ export default function Slips() {
             >
                 <View style={styles.comandasGrid}>
                     {slips.map(slip => (
-                        <ComandaCard
-                            key={slip._id}
-                            table={slip.table}
-                            items={slip.items.length}
-                            total={slip.total.toFixed(2).replace('.', ',')}
-                            time={slip.time}
-                            status={slip.status}
-                            onPress={() => handleSlipPress(slip)}
-                        />
+                        slip.isOpen && (
+                            <ComandaCard
+                                key={slip._id}
+                                table={slip.table}
+                                items={slip.items.length}
+                                total={slip.total.toFixed(2).replace('.', ',')}
+                                time={slip.time}
+                                status={slip.status}
+                                onPress={() => handleSlipPress(slip)}
+                            />
+                        )
                     ))}
                 </View>
 
-                {slips.length === 0 && (
+                {slips.filter(slip => slip.isOpen).length === 0 && searchQuery === '' && (
                     <EmptyState
                         icon={<Feather name="clipboard" size={48} color="#ccc" />}
-                        message="Nenhuma comanda encontrada"
+                        message="Nenhuma comanda aberta encontrada"
+                    />
+                )}
+
+                {slips.filter(slip => slip.isOpen).length === 0 && searchQuery !== '' && (
+                    <EmptyState
+                        icon={<Feather name="search" size={48} color="#ccc" />}
+                        message="Nenhuma comanda encontrada para a sua busca"
                     />
                 )}
             </ScrollView>
