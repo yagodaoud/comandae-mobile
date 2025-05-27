@@ -74,7 +74,7 @@ export default function AddSlipModal({
 
     const handleNextStep = () => {
         if (!table) {
-            setTableError('Por favor, insira um número de mesa');
+            setTableError('Por favor, insira um número de comanda');
             return;
         }
 
@@ -110,24 +110,33 @@ export default function AddSlipModal({
             return;
         }
 
-        // Check if product already exists in items
-        const existingItemIndex = items.findIndex(item => item.productId === selectedProduct._id);
-
-        if (existingItemIndex >= 0) {
-            // Update existing item quantity
-            const updatedItems = [...items];
-            updatedItems[existingItemIndex] = {
-                ...updatedItems[existingItemIndex],
-                quantity: updatedItems[existingItemIndex].quantity + quantityNum,
-            };
-            setItems(updatedItems);
-        } else {
-            // Add new item
+        // For non-stackable products, always add as a new item
+        if (selectedProduct.notStack) {
             setItems([...items, {
                 productId: selectedProduct._id,
                 quantity: quantityNum,
                 customPrice: customPriceNum,
             }]);
+        } else {
+            // Check if product already exists in items
+            const existingItemIndex = items.findIndex(item => item.productId === selectedProduct._id);
+
+            if (existingItemIndex >= 0) {
+                // Update existing item quantity
+                const updatedItems = [...items];
+                updatedItems[existingItemIndex] = {
+                    ...updatedItems[existingItemIndex],
+                    quantity: updatedItems[existingItemIndex].quantity + quantityNum,
+                };
+                setItems(updatedItems);
+            } else {
+                // Add new item
+                setItems([...items, {
+                    productId: selectedProduct._id,
+                    quantity: quantityNum,
+                    customPrice: customPriceNum,
+                }]);
+            }
         }
 
         setSelectedProduct(null);

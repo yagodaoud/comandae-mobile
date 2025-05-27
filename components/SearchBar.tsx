@@ -20,7 +20,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
                 <Feather name="search" size={18} color="#888" style={styles.searchIcon} />
                 <TextInput
                     style={styles.searchInput}
-                    placeholder="Buscar por mesa"
+                    placeholder="Buscar por Comanda"
                     placeholderTextColor="#888"
                     value={searchQuery}
                     onChangeText={onSearchChange}

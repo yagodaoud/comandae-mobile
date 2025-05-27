@@ -89,14 +89,26 @@ export default function ProductsStep({
                                         >
                                             {product.name}
                                         </Text>
-                                        <Text
-                                            style={[
-                                                styles.productPrice,
-                                                selectedProduct?._id === product._id && styles.productPriceSelected,
-                                            ]}
-                                        >
-                                            R$ {product.price.toFixed(2)}
-                                        </Text>
+                                        <View style={styles.productDetails}>
+                                            {product.notStack && (
+                                                <Text
+                                                    style={[
+                                                        styles.productTag,
+                                                        selectedProduct?._id === product._id && styles.productTagSelected,
+                                                    ]}
+                                                >
+                                                    Por Unidade
+                                                </Text>
+                                            )}
+                                            <Text
+                                                style={[
+                                                    styles.productPrice,
+                                                    selectedProduct?._id === product._id && styles.productPriceSelected,
+                                                ]}
+                                            >
+                                                R$ {product.price.toFixed(2)}
+                                            </Text>
+                                        </View>
                                     </View>
                                     {!product.hasInfiniteStock && product.stock <= 0 && (
                                         <Text style={styles.outOfStockText}>Sem estoque</Text>
@@ -376,5 +388,22 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: 'bold',
         marginRight: 8,
+    },
+    productDetails: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    productTag: {
+        fontSize: 12,
+        color: '#666',
+        backgroundColor: '#f0f0f0',
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 4,
+    },
+    productTagSelected: {
+        color: '#fff',
+        backgroundColor: 'rgba(255, 255, 255, 0.2)',
     },
 }); 

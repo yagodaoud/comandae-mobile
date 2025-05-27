@@ -40,7 +40,7 @@ export default function ReviewStep({
             <Text style={styles.stepTitle}>Revisar Comanda</Text>
 
             <View style={styles.reviewSection}>
-                <Text style={styles.reviewLabel}>Mesa</Text>
+                <Text style={styles.reviewLabel}>Comanda</Text>
                 <Text style={styles.reviewValue}>{table}</Text>
             </View>
 

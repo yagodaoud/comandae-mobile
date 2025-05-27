@@ -40,25 +40,17 @@ export const createProduct = mutation({
     args: {
         name: v.string(),
         description: v.string(),
-        price: v.number(),
-        stock: v.number(),
+        price: v.float64(),
+        stock: v.float64(),
         image: v.string(),
         categoryId: v.id("product_categories"),
         hasInfiniteStock: v.boolean(),
         hasCustomPrice: v.boolean(),
+        notStack: v.optional(v.boolean()),
     },
     handler: async (ctx, args) => {
-        const productId = await ctx.db.insert("products", {
-            name: args.name,
-            description: args.description,
-            price: args.price,
-            stock: args.stock,
-            image: args.image,
-            categoryId: args.categoryId,
-            hasInfiniteStock: args.hasInfiniteStock,
-            hasCustomPrice: args.hasCustomPrice,
-        });
-        return productId;
+        const id = await ctx.db.insert("products", args);
+        return id;
     },
 });
 
@@ -94,16 +86,16 @@ export const updateProduct = mutation({
         id: v.id("products"),
         name: v.string(),
         description: v.string(),
-        price: v.number(),
-        stock: v.number(),
+        price: v.float64(),
+        stock: v.float64(),
         image: v.string(),
         categoryId: v.id("product_categories"),
         hasInfiniteStock: v.boolean(),
         hasCustomPrice: v.boolean(),
+        notStack: v.optional(v.boolean()),
     },
     handler: async (ctx, args) => {
-        const { id, ...updates } = args;
-        await ctx.db.patch(id, updates);
-        return id;
+        const { id, ...data } = args;
+        await ctx.db.patch(id, data);
     },
 }); 

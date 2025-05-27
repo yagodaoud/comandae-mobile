@@ -51,6 +51,7 @@ export default defineSchema({
         categoryId: v.id("product_categories"),
         hasInfiniteStock: v.boolean(),
         hasCustomPrice: v.boolean(),
+        notStack: v.optional(v.boolean()),
     }),
 
     product_categories: defineTable({

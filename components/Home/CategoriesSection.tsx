@@ -33,7 +33,7 @@ const CategoriesSection: React.FC = () => {
             <View style={styles.categoryGrid}>
                 <CategoryCard
                     icon={<Feather name="check-square" size={24} color={COLORS.primary} />}
-                    count="9 Mesas Abertas"
+                    count="9 Comandas Abertas"
                     title="Comandas"
                     screenName="slips"
                 />

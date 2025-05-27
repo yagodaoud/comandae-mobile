@@ -30,6 +30,7 @@ export default function AddProductModal({
     const [selectedCategory, setSelectedCategory] = useState<Id<"product_categories"> | null>(null);
     const [hasInfiniteStock, setHasInfiniteStock] = useState(false);
     const [hasCustomPrice, setHasCustomPrice] = useState(false);
+    const [notStack, setNotStack] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const categories = useQuery(api.products.getProductCategories) ?? [];
@@ -48,6 +49,7 @@ export default function AddProductModal({
                 setSelectedCategory(editingProduct.categoryId);
                 setHasInfiniteStock(editingProduct.hasInfiniteStock);
                 setHasCustomPrice(editingProduct.hasCustomPrice);
+                setNotStack(editingProduct.notStack ?? false);
             } else {
                 setName('');
                 setDescription('');
@@ -57,6 +59,7 @@ export default function AddProductModal({
                 setSelectedCategory(null);
                 setHasInfiniteStock(false);
                 setHasCustomPrice(false);
+                setNotStack(false);
             }
         }
     }, [visible, editingProduct]);
@@ -92,6 +95,7 @@ export default function AddProductModal({
                     categoryId: selectedCategory,
                     hasInfiniteStock,
                     hasCustomPrice,
+                    notStack,
                 });
             } else {
                 await createProduct({
@@ -103,6 +107,7 @@ export default function AddProductModal({
                     categoryId: selectedCategory,
                     hasInfiniteStock,
                     hasCustomPrice,
+                    notStack,
                 });
             }
             onProductAdded();
@@ -239,6 +244,18 @@ export default function AddProductModal({
                                 color={COLORS.primary}
                             />
                             <Text style={styles.checkboxLabel}>Permitir Preço Personalizado</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={styles.checkbox}
+                            onPress={() => setNotStack(!notStack)}
+                        >
+                            <Feather
+                                name={notStack ? 'check-square' : 'square'}
+                                size={20}
+                                color={COLORS.primary}
+                            />
+                            <Text style={styles.checkboxLabel}>Não Empilhar Itens (ex: produtos por peso)</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity

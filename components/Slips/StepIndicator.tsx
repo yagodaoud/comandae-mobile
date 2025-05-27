@@ -8,72 +8,105 @@ interface StepIndicatorProps {
 }
 
 export default function StepIndicator({ currentStep, totalSteps }: StepIndicatorProps) {
+    const steps = [
+        { number: 1, label: 'Comanda' },
+        { number: 2, label: 'Produtos' },
+        { number: 3, label: 'Revisar' },
+    ];
+
     return (
         <View style={styles.container}>
-            {Array.from({ length: totalSteps }).map((_, index) => (
-                <React.Fragment key={index}>
-                    <View style={styles.stepContainer}>
-                        <View style={[
-                            styles.stepCircle,
-                            index + 1 <= currentStep && styles.stepCircleActive
-                        ]}>
-                            <Text style={[
-                                styles.stepNumber,
-                                index + 1 <= currentStep && styles.stepNumberActive
-                            ]}>
-                                {index + 1}
+            <View style={styles.stepsContainer}>
+                {steps.map((step, index) => (
+                    <React.Fragment key={step.number}>
+                        <View style={styles.stepContainer}>
+                            <View
+                                style={[
+                                    styles.step,
+                                    currentStep >= step.number && styles.stepActive,
+                                ]}
+                            >
+                                <Text
+                                    style={[
+                                        styles.stepNumber,
+                                        currentStep >= step.number && styles.stepNumberActive,
+                                    ]}
+                                >
+                                    {step.number}
+                                </Text>
+                            </View>
+                            <Text
+                                style={[
+                                    styles.stepLabel,
+                                    currentStep >= step.number && styles.stepLabelActive,
+                                ]}
+                            >
+                                {step.label}
                             </Text>
                         </View>
-                        {index < totalSteps - 1 && (
-                            <View style={[
-                                styles.line,
-                                index + 1 < currentStep && styles.lineActive
-                            ]} />
+                        {index < steps.length - 1 && (
+                            <View
+                                style={[
+                                    styles.line,
+                                    currentStep > step.number && styles.lineActive,
+                                ]}
+                            />
                         )}
-                    </View>
-                </React.Fragment>
-            ))}
+                    </React.Fragment>
+                ))}
+            </View>
         </View>
     );
 }
 
 const styles = StyleSheet.create({
     container: {
+        padding: 20,
+        backgroundColor: '#fff',
+    },
+    stepsContainer: {
         flexDirection: 'row',
-        justifyContent: 'center',
+        justifyContent: 'space-between',
         alignItems: 'center',
-        paddingVertical: 20,
     },
     stepContainer: {
-        flexDirection: 'row',
         alignItems: 'center',
     },
-    stepCircle: {
+    step: {
         width: 32,
         height: 32,
         borderRadius: 16,
         backgroundColor: '#f0f0f0',
         justifyContent: 'center',
         alignItems: 'center',
-        borderWidth: 2,
-        borderColor: '#ddd',
+        marginBottom: 4,
     },
-    stepCircleActive: {
+    stepActive: {
         backgroundColor: COLORS.secondary,
-        borderColor: COLORS.secondary,
     },
     stepNumber: {
         fontSize: 16,
-        color: '#666',
         fontWeight: 'bold',
+        color: '#666',
     },
     stepNumberActive: {
         color: '#fff',
     },
+    stepLabel: {
+        fontSize: 12,
+        color: '#666',
+        marginTop: 2,
+    },
+    stepLabelActive: {
+        color: COLORS.secondary,
+        fontWeight: '500',
+    },
     line: {
-        width: 60,
+        flex: 1,
         height: 2,
-        backgroundColor: '#ddd',
+        backgroundColor: '#f0f0f0',
+        marginHorizontal: 8,
+        marginBottom: 20,
     },
     lineActive: {
         backgroundColor: COLORS.secondary,
