@@ -21,10 +21,27 @@ export const ComandaCard: React.FC<ComandaCardProps> = ({
 }) => {
     const getStatusColor = (status: string) => {
         switch (status) {
-            case 'recent': return '#4CAF50';
-            case 'medium': return '#FF9800';
-            case 'long': return '#F44336';
-            default: return '#4CAF50';
+            case 'recent':
+                return '#4CAF50'; // Green
+            case 'medium':
+                return '#FF9800'; // Orange
+            case 'long':
+                return '#F44336'; // Red
+            default:
+                return '#9E9E9E'; // Grey
+        }
+    };
+
+    const getStatusLabel = (status: string) => {
+        switch (status) {
+            case 'recent':
+                return 'Recente';
+            case 'medium':
+                return 'Intermediária';
+            case 'long':
+                return 'Atrasada';
+            default:
+                return 'Desconhecido';
         }
     };
 

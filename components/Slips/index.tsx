@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, ScrollView, Platform, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -10,37 +10,71 @@ import { StatsCard } from './StatsCard';
 import { FilterChips } from './FilterChips';
 import { EmptyState } from './EmptyState';
 import { QuickActionButton } from './QuickActionButton';
-
-const initialComandas = [
-    { id: '1', table: 'Mesa 1', items: 4, total: '124,90', time: '15min', status: 'recent' },
-    { id: '2', table: 'Mesa 3', items: 6, total: '198,50', time: '42min', status: 'medium' },
-    { id: '3', table: 'Mesa 7', items: 8, total: '345,20', time: '1h 12min', status: 'long' },
-    { id: '4', table: 'Mesa 9', items: 2, total: '64,80', time: '7min', status: 'recent' },
-    { id: '5', table: 'Mesa 12', items: 5, total: '212,30', time: '50min', status: 'medium' },
-    { id: '6', table: 'Mesa 15', items: 3, total: '98,90', time: '22min', status: 'medium' },
-    { id: '7', table: 'Mesa 18', items: 7, total: '276,40', time: '1h 35min', status: 'long' },
-    { id: '8', table: 'Mesa 20', items: 4, total: '142,30', time: '5min', status: 'recent' },
-];
+import { useQuery, useMutation } from 'convex/react';
+import { api } from '@/convex/_generated/api';
+import AddSlipModal from './AddSlipModal';
+import { Id } from '@/convex/_generated/dataModel';
 
 export default function Slips() {
     const insets = useSafeAreaInsets();
-    const [comandas, setComandas] = useState(initialComandas);
     const [searchQuery, setSearchQuery] = useState('');
     const [activeFilter, setActiveFilter] = useState('all');
+    const [isAddModalVisible, setIsAddModalVisible] = useState(false);
+    const [editingSlip, setEditingSlip] = useState<{ id: Id<"slips">; table: string } | null>(null);
 
     const bottomPadding = 60 + (Platform.OS === 'ios' ? insets.bottom : 0);
 
-    const filteredComandas = comandas.filter(comanda => {
-        const matchesSearch = comanda.table.toLowerCase().includes(searchQuery.toLowerCase());
-        if (activeFilter === 'all') return matchesSearch;
-        return matchesSearch && comanda.status === activeFilter;
-    });
+    const slips = useQuery(api.slips.getSlips, {
+        status: activeFilter === 'all' ? undefined : activeFilter,
+        searchQuery: searchQuery || undefined,
+    }) ?? [];
+
+    const updateSlipStatus = useMutation(api.slips.updateSlipStatus);
+
+    // Update slip statuses periodically
+    useEffect(() => {
+        if (!slips.length) return;
+
+        const updateStatuses = async () => {
+            for (const slip of slips) {
+                const timeDiff = Date.now() - slip.lastUpdateTime;
+                let newStatus = slip.status;
+
+                if (timeDiff > 3600000) { // More than 1 hour
+                    newStatus = "long";
+                } else if (timeDiff > 1800000) { // More than 30 minutes
+                    newStatus = "medium";
+                } else {
+                    newStatus = "recent";
+                }
+
+                if (newStatus !== slip.status) {
+                    await updateSlipStatus({ id: slip._id, status: newStatus });
+                }
+            }
+        };
+
+        const interval = setInterval(updateStatuses, 60000); // Check every minute
+        return () => clearInterval(interval);
+    }, [slips, updateSlipStatus]);
 
     const stats = {
-        total: comandas.length,
-        totalValue: comandas.reduce((sum, comanda) =>
-            sum + parseFloat(comanda.total.replace(',', '.')), 0).toFixed(2).replace('.', ','),
-        long: comandas.filter(c => c.status === 'long').length,
+        total: slips.length,
+        totalValue: slips.reduce((sum, slip) => sum + slip.total, 0).toFixed(2).replace('.', ','),
+        long: slips.filter(s => s.status === 'long').length,
+    };
+
+    const handleSlipPress = (slip: typeof slips[0]) => {
+        setEditingSlip({
+            id: slip._id,
+            table: slip.table,
+        });
+        setIsAddModalVisible(true);
+    };
+
+    const handleModalClose = () => {
+        setIsAddModalVisible(false);
+        setEditingSlip(null);
     };
 
     return (
@@ -50,7 +84,7 @@ export default function Slips() {
             <SearchBar
                 searchQuery={searchQuery}
                 onSearchChange={setSearchQuery}
-                onAddPress={() => console.log('Add new comanda')}
+                onAddPress={() => setIsAddModalVisible(true)}
             />
 
             <StatsCard
@@ -73,20 +107,20 @@ export default function Slips() {
                 showsVerticalScrollIndicator={false}
             >
                 <View style={styles.comandasGrid}>
-                    {filteredComandas.map(comanda => (
+                    {slips.map(slip => (
                         <ComandaCard
-                            key={comanda.id}
-                            table={comanda.table}
-                            items={comanda.items}
-                            total={comanda.total}
-                            time={comanda.time}
-                            status={comanda.status}
-                            onPress={() => console.log('View comanda', comanda.id)}
+                            key={slip._id}
+                            table={slip.table}
+                            items={slip.items.length}
+                            total={slip.total.toFixed(2).replace('.', ',')}
+                            time={slip.time}
+                            status={slip.status}
+                            onPress={() => handleSlipPress(slip)}
                         />
                     ))}
                 </View>
 
-                {filteredComandas.length === 0 && (
+                {slips.length === 0 && (
                     <EmptyState
                         icon={<Feather name="clipboard" size={48} color="#ccc" />}
                         message="Nenhuma comanda encontrada"
@@ -95,7 +129,14 @@ export default function Slips() {
             </ScrollView>
 
             <QuickActionButton
-                onPress={() => console.log('Quick add new comanda')}
+                onPress={() => setIsAddModalVisible(true)}
+            />
+
+            <AddSlipModal
+                visible={isAddModalVisible}
+                onClose={handleModalClose}
+                onSlipAdded={handleModalClose}
+                editingSlip={editingSlip}
             />
         </View>
     );
@@ -115,5 +156,4 @@ const styles = StyleSheet.create({
     scrollView: {
         flex: 1,
     },
-
 });

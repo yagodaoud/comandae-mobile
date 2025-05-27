@@ -1,5 +1,6 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { Id } from "./_generated/dataModel";
 
 export const getProducts = query({
     handler: async (ctx) => {
@@ -23,6 +24,15 @@ export const getProductsByCategory = query({
             .filter((q) => q.eq(q.field("categoryId"), args.categoryId))
             .collect();
         return products;
+    },
+});
+
+export const getCategories = query({
+    handler: async (ctx) => {
+        return await ctx.db
+            .query("product_categories")
+            .order("asc")
+            .collect();
     },
 });
 

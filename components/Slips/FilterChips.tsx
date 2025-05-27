@@ -7,40 +7,29 @@ interface FilterChipsProps {
     onFilterChange: (filter: string) => void;
 }
 
-export const FilterChips: React.FC<FilterChipsProps> = ({
-    activeFilter,
-    onFilterChange
-}) => {
-    const filterOptions = [
-        { key: 'all', label: 'Todos' },
-        { key: 'recent', label: 'Recentes', color: '#4CAF50' },
-        { key: 'medium', label: 'Em Espera', color: '#FF9800' },
-        { key: 'long', label: 'Atrasados', color: '#F44336' }
+export function FilterChips({ activeFilter, onFilterChange }: FilterChipsProps) {
+    const filters = [
+        { id: 'all', label: 'Todas' },
+        { id: 'recent', label: 'Recentes' },
+        { id: 'medium', label: 'Intermediárias' },
+        { id: 'long', label: 'Demoradas' },
     ];
 
     return (
-        <View style={styles.filterContainer}>
-            {filterOptions.map((filter) => (
+        <View style={styles.container}>
+            {filters.map((filter) => (
                 <TouchableOpacity
-                    key={filter.key}
+                    key={filter.id}
                     style={[
-                        styles.filterChip,
-                        activeFilter === filter.key && styles.activeFilterChip
+                        styles.chip,
+                        activeFilter === filter.id && styles.activeChip,
                     ]}
-                    onPress={() => onFilterChange(filter.key)}
+                    onPress={() => onFilterChange(filter.id)}
                 >
-                    {filter.color && (
-                        <View
-                            style={[
-                                styles.colorIndicator,
-                                { backgroundColor: filter.color }
-                            ]}
-                        />
-                    )}
                     <Text
                         style={[
-                            styles.filterText,
-                            activeFilter === filter.key && styles.activeFilterText
+                            styles.chipText,
+                            activeFilter === filter.id && styles.activeChipText,
                         ]}
                     >
                         {filter.label}
@@ -49,42 +38,30 @@ export const FilterChips: React.FC<FilterChipsProps> = ({
             ))}
         </View>
     );
-};
+}
 
 const styles = StyleSheet.create({
-    filterContainer: {
+    container: {
         flexDirection: 'row',
         paddingHorizontal: 16,
         paddingVertical: 8,
-        overflow: 'scroll',
+        gap: 8,
     },
-    filterChip: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 6,
-        paddingHorizontal: 12,
-        marginRight: 8,
-        borderRadius: 16,
-        backgroundColor: '#fff',
-        borderWidth: 1,
-        borderColor: '#e0e0e0',
+    chip: {
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: 20,
+        backgroundColor: '#f0f0f0',
     },
-    activeFilterChip: {
+    activeChip: {
         backgroundColor: COLORS.secondary,
         borderColor: COLORS.secondary,
     },
-    colorIndicator: {
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-        marginRight: 6,
+    chipText: {
+        fontSize: 14,
+        color: '#666',
     },
-    filterText: {
-        fontSize: 12,
-        color: '#333',
-    },
-    activeFilterText: {
+    activeChipText: {
         color: '#fff',
-        fontWeight: '500',
     },
-})
+});

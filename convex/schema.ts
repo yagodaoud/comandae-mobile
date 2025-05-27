@@ -81,6 +81,21 @@ export default defineSchema({
         .index("by_order", ["orderId"])
         .index("by_product", ["productId"]),
 
+    slips: defineTable({
+        _creationTime: v.number(),
+        table: v.string(),
+        items: v.array(v.object({
+            productId: v.id("products"),
+            quantity: v.number(),
+            customPrice: v.optional(v.number()),
+        })),
+        total: v.number(),
+        status: v.union(v.literal("recent"), v.literal("medium"), v.literal("long")),
+        lastUpdateTime: v.number(),
+    })
+        .index("by_status", ["status"])
+        .index("by_table", ["table"]),
+
     pix: defineTable({
         _creationTime: v.number(),
         type: v.union(v.literal("cpf"), v.literal("cnpj"), v.literal("email"), v.literal("phone")),
