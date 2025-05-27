@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import ActionMenu from './ActionMenu';
 
 interface ComandaCardProps {
     table: string;
@@ -19,6 +20,9 @@ export const ComandaCard: React.FC<ComandaCardProps> = ({
     status,
     onPress
 }) => {
+    const [showActions, setShowActions] = useState(false);
+    const [actionPosition, setActionPosition] = useState({ x: 0, y: 0 });
+
     const getStatusColor = (status: string) => {
         switch (status) {
             case 'recent':
@@ -45,29 +49,45 @@ export const ComandaCard: React.FC<ComandaCardProps> = ({
         }
     };
 
+    const handleLongPress = (event: any) => {
+        const { pageX, pageY } = event.nativeEvent;
+        setActionPosition({ x: pageX, y: pageY });
+        setShowActions(true);
+    };
+
     return (
-        <TouchableOpacity
-            style={[styles.comandaCard, { borderLeftColor: getStatusColor(status) }]}
-            onPress={onPress}
-        >
-            <View style={styles.comandaHeader}>
-                <Text style={styles.comandaTitle}>{table}</Text>
-                <View style={[styles.timeIndicator, { backgroundColor: getStatusColor(status) }]}>
-                    <Text style={styles.timeText}>{time}</Text>
+        <>
+            <TouchableOpacity
+                style={[styles.comandaCard, { borderLeftColor: getStatusColor(status) }]}
+                onPress={onPress}
+                onLongPress={handleLongPress}
+                delayLongPress={300}
+            >
+                <View style={styles.comandaHeader}>
+                    <Text style={styles.comandaTitle}>{table}</Text>
+                    <View style={[styles.timeIndicator, { backgroundColor: getStatusColor(status) }]}>
+                        <Text style={styles.timeText}>{time}</Text>
+                    </View>
                 </View>
-            </View>
-            <View style={styles.comandaContent}>
-                <View style={styles.commandDetail}>
-                    <Feather name="shopping-bag" size={16} color="#888" />
-                    <Text style={styles.commandDetailText}>{items} itens</Text>
+                <View style={styles.comandaContent}>
+                    <View style={styles.commandDetail}>
+                        <Feather name="shopping-bag" size={16} color="#888" />
+                        <Text style={styles.commandDetailText}>{items} itens</Text>
+                    </View>
+                    <View style={styles.comandaDivider} />
+                    <View style={styles.commandDetail}>
+                        <Feather name="dollar-sign" size={16} color="#888" />
+                        <Text style={styles.commandDetailText}>R$ {total}</Text>
+                    </View>
                 </View>
-                <View style={styles.comandaDivider} />
-                <View style={styles.commandDetail}>
-                    <Feather name="dollar-sign" size={16} color="#888" />
-                    <Text style={styles.commandDetailText}>R$ {total}</Text>
-                </View>
-            </View>
-        </TouchableOpacity>
+            </TouchableOpacity>
+
+            <ActionMenu
+                visible={showActions}
+                position={actionPosition}
+                onClose={() => setShowActions(false)}
+            />
+        </>
     );
 };
 
@@ -125,5 +145,5 @@ const styles = StyleSheet.create({
         height: 16,
         backgroundColor: '#e0e0e0',
     },
-})
+});
 
