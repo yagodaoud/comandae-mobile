@@ -1,16 +1,23 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { useRouter } from 'expo-router';
 
 interface WelcomeHeaderProps {
     username: string;
 }
+
 const WelcomeHeader: React.FC<WelcomeHeaderProps> = ({ username }) => {
+    const router = useRouter();
+
     return (
         <>
             <Text style={styles.welcomeTitle}>Bem vindo, {username}!</Text>
 
             <View style={styles.buttonContainer}>
-                <TouchableOpacity style={styles.button}>
+                <TouchableOpacity
+                    style={styles.button}
+                    onPress={() => router.push('/config')}
+                >
                     <Text style={styles.buttonText}>Configurações</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.button}>
