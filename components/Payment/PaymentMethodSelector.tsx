@@ -1,7 +1,10 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, Modal } from 'react-native';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS } from '@/constants/theme';
+import { useQuery } from 'convex/react';
+import { api } from '@/convex/_generated/api';
+import { EmptyState } from '@/components/EmptyState';
 
 interface PaymentMethod {
     id: string;
@@ -19,6 +22,24 @@ interface PaymentMethodSelectorProps {
     grandTotal?: string;
 }
 
+interface PixKey {
+    _id: string;
+    type: 'cpf' | 'cnpj' | 'email' | 'phone';
+    key: string;
+    city: string;
+    company_name: string;
+    isActive: boolean;
+}
+
+interface BitcoinKey {
+    _id: string;
+    network: 'mainnet' | 'testnet' | 'lightning';
+    address: string;
+    isActive: boolean;
+}
+
+type PaymentKey = PixKey | BitcoinKey;
+
 export const PaymentMethodSelector = ({
     paymentMethods,
     selectedPaymentMethod,
@@ -27,11 +48,139 @@ export const PaymentMethodSelector = ({
     onCashAmountChange,
     grandTotal,
 }: PaymentMethodSelectorProps) => {
+    const [showKeysModal, setShowKeysModal] = useState(false);
+    const [showQRCode, setShowQRCode] = useState(false);
+    const [selectedKey, setSelectedKey] = useState<PaymentKey | null>(null);
+
+    const pixConfig = useQuery(api.pix.getPixConfig);
+    const bitcoinConfig = useQuery(api.bitcoin.getBitcoinConfig);
+
     const renderIcon = (method: PaymentMethod) => {
         if (method.iconType === 'material') {
-            return <MaterialCommunityIcons name={method.icon} size={20} color={selectedPaymentMethod === method.id ? '#fff' : '#666'} />;
+            return <MaterialCommunityIcons name={method.icon as any} size={20} color={selectedPaymentMethod === method.id ? '#fff' : '#666'} />;
         }
-        return <Feather name={method.icon} size={20} color={selectedPaymentMethod === method.id ? '#fff' : '#666'} />;
+        return <Feather name={method.icon as any} size={20} color={selectedPaymentMethod === method.id ? '#fff' : '#666'} />;
+    };
+
+    const handleQRCodePress = () => {
+        setShowKeysModal(true);
+    };
+
+    const handleKeySelect = (key: PaymentKey) => {
+        setSelectedKey(key);
+        setShowKeysModal(false);
+        setShowQRCode(true);
+    };
+
+    const renderKeysModal = () => {
+        const isPix = selectedPaymentMethod === 'pix';
+        const keys: PaymentKey[] = [];
+
+        if (isPix && pixConfig) {
+            keys.push(pixConfig as PixKey);
+        } else if (!isPix && bitcoinConfig) {
+            keys.push(bitcoinConfig as BitcoinKey);
+        }
+
+        return (
+            <Modal
+                visible={showKeysModal}
+                transparent
+                animationType="slide"
+                onRequestClose={() => setShowKeysModal(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>
+                                {isPix ? 'Chaves PIX' : 'Endereços Bitcoin'}
+                            </Text>
+                            <TouchableOpacity onPress={() => setShowKeysModal(false)}>
+                                <Feather name="x" size={24} color="#666" />
+                            </TouchableOpacity>
+                        </View>
+
+                        <View style={styles.keysList}>
+                            {keys.length > 0 ? (
+                                keys.map((key: PaymentKey) => (
+                                    <TouchableOpacity
+                                        key={key._id}
+                                        style={styles.keyItem}
+                                        onPress={() => handleKeySelect(key)}
+                                    >
+                                        <View style={styles.keyInfo}>
+                                            <Text style={styles.keyLabel}>
+                                                {isPix ? (key as PixKey).type : (key as BitcoinKey).network}
+                                            </Text>
+                                            <Text style={styles.keyValue} numberOfLines={1}>
+                                                {isPix ? (key as PixKey).key : (key as BitcoinKey).address}
+                                            </Text>
+                                            {isPix && (key as PixKey).company_name && (
+                                                <Text style={styles.companyName}>
+                                                    {(key as PixKey).company_name}
+                                                </Text>
+                                            )}
+                                        </View>
+                                        <Feather name="chevron-right" size={20} color="#666" />
+                                    </TouchableOpacity>
+                                ))
+                            ) : (
+                                <EmptyState
+                                    icon={
+                                        isPix ? (
+                                            <Feather name="smartphone" size={48} color="#ccc" />
+                                        ) : (
+                                            <MaterialCommunityIcons name="bitcoin" size={48} color="#ccc" />
+                                        )
+                                    }
+                                    message={
+                                        isPix
+                                            ? "Nenhuma chave PIX configurada"
+                                            : "Nenhum endereço Bitcoin configurado"
+                                    }
+                                />
+                            )}
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+        );
+    };
+
+    const renderQRCodeScreen = () => {
+        if (!selectedKey) return null;
+        const isPix = selectedPaymentMethod === 'pix';
+
+        return (
+            <Modal
+                visible={showQRCode}
+                animationType="slide"
+                onRequestClose={() => setShowQRCode(false)}
+            >
+                <View style={styles.qrCodeContainer}>
+                    <View style={styles.qrCodeHeader}>
+                        <TouchableOpacity onPress={() => setShowQRCode(false)}>
+                            <Feather name="x" size={24} color="#666" />
+                        </TouchableOpacity>
+                        <Text style={styles.qrCodeTitle}>
+                            {isPix ? 'QR Code PIX' : 'QR Code Bitcoin'}
+                        </Text>
+                        <View style={{ width: 24 }} />
+                    </View>
+
+                    <View style={styles.qrCodeContent}>
+                        {/* QR Code will be rendered here */}
+                        <View style={styles.qrCodePlaceholder}>
+                            <Feather name="smartphone" size={200} color="#ccc" />
+                        </View>
+
+                        <Text style={styles.qrCodeInfo}>
+                            {isPix ? (selectedKey as PixKey).key : (selectedKey as BitcoinKey).address}
+                        </Text>
+                    </View>
+                </View>
+            </Modal>
+        );
     };
 
     return (
@@ -58,6 +207,16 @@ export const PaymentMethodSelector = ({
                 ))}
             </View>
 
+            {(selectedPaymentMethod === 'pix' || selectedPaymentMethod === 'bitcoin') && (
+                <TouchableOpacity
+                    style={styles.qrCodeButton}
+                    onPress={handleQRCodePress}
+                >
+                    <Feather name="smartphone" size={20} color={COLORS.secondary} />
+                    <Text style={styles.qrCodeButtonText}>Mostrar QR Code</Text>
+                </TouchableOpacity>
+            )}
+
             {selectedPaymentMethod === 'cash' && (
                 <View style={styles.cashInputContainer}>
                     <Text style={styles.cashInputLabel}>Valor em Dinheiro</Text>
@@ -82,6 +241,9 @@ export const PaymentMethodSelector = ({
                     )}
                 </View>
             )}
+
+            {renderKeysModal()}
+            {renderQRCodeScreen()}
         </View>
     );
 };
@@ -180,5 +342,112 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: '600',
         color: COLORS.secondary,
+    },
+    qrCodeButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#fff',
+        borderRadius: 8,
+        padding: 12,
+        marginTop: 12,
+        borderWidth: 1,
+        borderColor: COLORS.secondary,
+    },
+    qrCodeButtonText: {
+        marginLeft: 8,
+        fontSize: 14,
+        color: COLORS.secondary,
+        fontWeight: '600',
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'flex-end',
+    },
+    modalContent: {
+        backgroundColor: '#fff',
+        borderTopLeftRadius: 20,
+        borderTopRightRadius: 20,
+        padding: 16,
+        maxHeight: '80%',
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 16,
+    },
+    modalTitle: {
+        fontSize: 18,
+        fontWeight: '600',
+        color: COLORS.secondary,
+    },
+    keysList: {
+        gap: 12,
+    },
+    keyItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#f5f5f5',
+        borderRadius: 8,
+        padding: 12,
+    },
+    keyInfo: {
+        flex: 1,
+        marginRight: 8,
+    },
+    keyLabel: {
+        fontSize: 12,
+        color: '#666',
+        marginBottom: 4,
+    },
+    keyValue: {
+        fontSize: 14,
+        color: '#333',
+        fontWeight: '500',
+    },
+    companyName: {
+        fontSize: 12,
+        color: '#666',
+        marginTop: 4,
+    },
+    qrCodeContainer: {
+        flex: 1,
+        backgroundColor: '#fff',
+    },
+    qrCodeHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: '#f0f0f0',
+    },
+    qrCodeTitle: {
+        fontSize: 18,
+        fontWeight: '600',
+        color: COLORS.secondary,
+    },
+    qrCodeContent: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 24,
+    },
+    qrCodePlaceholder: {
+        width: 250,
+        height: 250,
+        backgroundColor: '#f5f5f5',
+        borderRadius: 12,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 24,
+    },
+    qrCodeInfo: {
+        fontSize: 14,
+        color: '#666',
+        textAlign: 'center',
+        marginTop: 16,
     },
 });
