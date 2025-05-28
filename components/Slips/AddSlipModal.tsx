@@ -50,7 +50,7 @@ export default function AddSlipModal({
         isOpen: true // Only fetch open slips
     }) ?? [];
     const createSlip = useMutation(api.slips.createSlip);
-    const updateSlip = useMutation(api.slips.updateSlip);
+    const updateSlipItems = useMutation(api.slips.updateSlipItems);
 
     // Reset form when modal opens/closes
     useEffect(() => {
@@ -181,7 +181,7 @@ export default function AddSlipModal({
         setIsSubmitting(true);
         try {
             if (editingSlip) {
-                await updateSlip({
+                await updateSlipItems({
                     id: editingSlip.id,
                     items,
                 });

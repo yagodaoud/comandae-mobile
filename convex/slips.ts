@@ -202,6 +202,38 @@ export const deleteSlip = mutation({
     },
 });
 
+export const updateSlipItems = mutation({
+    args: {
+        id: v.id("slips"),
+        items: v.array(v.object({
+            productId: v.id("products"),
+            quantity: v.number(),
+            customPrice: v.optional(v.number()),
+        })),
+    },
+    handler: async (ctx, args) => {
+        const { id, items } = args;
+
+        // Calculate new total
+        let total = 0;
+        for (const item of items) {
+            const product = await ctx.db.get(item.productId);
+            if (!product) continue;
+
+            const price = item.customPrice ?? product.price;
+            total += price * item.quantity;
+        }
+
+        await ctx.db.patch(id, {
+            items,
+            total,
+            lastUpdateTime: Date.now(),
+        });
+
+        return id;
+    },
+});
+
 // Helper function to format time difference
 function formatTimeDiff(diff: number): string {
     const minutes = Math.floor(diff / 60000);
