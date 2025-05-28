@@ -5,6 +5,7 @@ import { COLORS } from '@/constants/theme';
 import { useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { EmptyState } from '@/components/EmptyState';
+import { QRCodeModal } from './QRCodeModal';
 
 interface PaymentMethod {
     id: string;
@@ -147,42 +148,6 @@ export const PaymentMethodSelector = ({
         );
     };
 
-    const renderQRCodeScreen = () => {
-        if (!selectedKey) return null;
-        const isPix = selectedPaymentMethod === 'pix';
-
-        return (
-            <Modal
-                visible={showQRCode}
-                animationType="slide"
-                onRequestClose={() => setShowQRCode(false)}
-            >
-                <View style={styles.qrCodeContainer}>
-                    <View style={styles.qrCodeHeader}>
-                        <TouchableOpacity onPress={() => setShowQRCode(false)}>
-                            <Feather name="x" size={24} color="#666" />
-                        </TouchableOpacity>
-                        <Text style={styles.qrCodeTitle}>
-                            {isPix ? 'QR Code PIX' : 'QR Code Bitcoin'}
-                        </Text>
-                        <View style={{ width: 24 }} />
-                    </View>
-
-                    <View style={styles.qrCodeContent}>
-                        {/* QR Code will be rendered here */}
-                        <View style={styles.qrCodePlaceholder}>
-                            <Feather name="smartphone" size={200} color="#ccc" />
-                        </View>
-
-                        <Text style={styles.qrCodeInfo}>
-                            {isPix ? (selectedKey as PixKey).key : (selectedKey as BitcoinKey).address}
-                        </Text>
-                    </View>
-                </View>
-            </Modal>
-        );
-    };
-
     return (
         <View style={styles.container}>
             <Text style={styles.title}>Forma de Pagamento</Text>
@@ -243,7 +208,13 @@ export const PaymentMethodSelector = ({
             )}
 
             {renderKeysModal()}
-            {renderQRCodeScreen()}
+            <QRCodeModal
+                visible={showQRCode}
+                onClose={() => setShowQRCode(false)}
+                selectedKey={selectedKey}
+                isPix={selectedPaymentMethod === 'pix'}
+                amount={grandTotal ? parseFloat(grandTotal) : 0}
+            />
         </View>
     );
 };
@@ -411,43 +382,5 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: '#666',
         marginTop: 4,
-    },
-    qrCodeContainer: {
-        flex: 1,
-        backgroundColor: '#fff',
-    },
-    qrCodeHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: '#f0f0f0',
-    },
-    qrCodeTitle: {
-        fontSize: 18,
-        fontWeight: '600',
-        color: COLORS.secondary,
-    },
-    qrCodeContent: {
-        flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 24,
-    },
-    qrCodePlaceholder: {
-        width: 250,
-        height: 250,
-        backgroundColor: '#f5f5f5',
-        borderRadius: 12,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 24,
-    },
-    qrCodeInfo: {
-        fontSize: 14,
-        color: '#666',
-        textAlign: 'center',
-        marginTop: 16,
     },
 });
