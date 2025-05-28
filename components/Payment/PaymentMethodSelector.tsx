@@ -212,7 +212,7 @@ export const PaymentMethodSelector = ({
                     style={styles.qrCodeButton}
                     onPress={handleQRCodePress}
                 >
-                    <Feather name="smartphone" size={20} color={COLORS.secondary} />
+                    <Feather name="camera" size={20} color={COLORS.secondary} />
                     <Text style={styles.qrCodeButtonText}>Mostrar QR Code</Text>
                 </TouchableOpacity>
             )}
