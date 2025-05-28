@@ -36,7 +36,7 @@ export const SlipCard: React.FC<SlipCardProps> = ({
             onPress={onPress}
         >
             <View style={styles.slipHeader}>
-                <Text style={styles.slipTitle}>{table}</Text>
+                <Text style={styles.slipTitle}>Comanda {table}</Text>
                 <View style={[styles.timeContainer]}>
                     <Text style={styles.timeText}>{formatTime()}</Text>
                     <View style={[styles.statusIndicator, { backgroundColor: getStatusColor() }]}>
