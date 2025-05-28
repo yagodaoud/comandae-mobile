@@ -45,7 +45,10 @@ export default function AddSlipModal({
 
     const products = useQuery(api.products.getProducts) ?? [];
     const categories = useQuery(api.products.getCategories) ?? [];
-    const existingSlip = useQuery(api.slips.getSlips, { table: table || undefined }) ?? [];
+    const existingSlip = useQuery(api.slips.getSlips, {
+        table: table || undefined,
+        isOpen: true // Only fetch open slips
+    }) ?? [];
     const createSlip = useMutation(api.slips.createSlip);
     const updateSlip = useMutation(api.slips.updateSlip);
 
@@ -84,9 +87,9 @@ export default function AddSlipModal({
             return;
         }
 
-        // Check if table is already in use
-        const existingSlipWithTable = existingSlip.find(s => s.table === table);
-        if (existingSlipWithTable && (!editingSlip || existingSlipWithTable._id !== editingSlip.id)) {
+        // Check if table is already in use (only open slips)
+        const existingOpenSlip = existingSlip.find(s => s.table === table);
+        if (existingOpenSlip && (!editingSlip || existingOpenSlip._id !== editingSlip.id)) {
             setTableError('Esta comanda já está em uso');
             return;
         }

@@ -54,10 +54,6 @@ export const OrderSummary: React.FC<OrderSummaryProps> = ({
                 <Text style={styles.totalValue}>R$ {orderData.subtotal}</Text>
             </View>
             <View style={styles.totalRow}>
-                <Text style={styles.totalLabel}>Taxa de Serviço (10%)</Text>
-                <Text style={styles.totalValue}>R$ {orderData.tax}</Text>
-            </View>
-            <View style={styles.totalRow}>
                 <Text style={styles.totalLabel}>Gorjeta ({tipPercentage}%)</Text>
                 <Text style={styles.totalValue}>R$ {tipAmount}</Text>
             </View>
