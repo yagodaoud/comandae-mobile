@@ -27,9 +27,25 @@ export const QRCodeModal = ({
     const qrSize = screenWidth * 0.7; // 70% of screen width
 
     const renderContent = () => {
-        if (!selectedKey) return null;
+        if (!selectedKey) {
+            return (
+                <View style={styles.content}>
+                    <Text style={styles.title}>Erro</Text>
+                    <Text style={styles.errorText}>Chave de pagamento não encontrada</Text>
+                </View>
+            );
+        }
 
         if (isPix) {
+            if (!selectedKey.key || !selectedKey.company_name) {
+                return (
+                    <View style={styles.content}>
+                        <Text style={styles.title}>Erro</Text>
+                        <Text style={styles.errorText}>Dados PIX incompletos</Text>
+                    </View>
+                );
+            }
+
             const pixQRCode = PixQRGenerator.generatePixCode(selectedKey.key, amount);
 
             return (
@@ -52,6 +68,15 @@ export const QRCodeModal = ({
         }
 
         // Bitcoin QR Code
+        if (!selectedKey.address || !selectedKey.network) {
+            return (
+                <View style={styles.content}>
+                    <Text style={styles.title}>Erro</Text>
+                    <Text style={styles.errorText}>Dados Bitcoin incompletos</Text>
+                </View>
+            );
+        }
+
         const qrData = BitcoinQRGenerator.generateQRCode(
             selectedKey.address,
             amount,
@@ -164,5 +189,11 @@ const styles = StyleSheet.create({
     btcAmount: {
         fontSize: 16,
         color: '#666',
+    },
+    errorText: {
+        fontSize: 16,
+        color: 'red',
+        textAlign: 'center',
+        marginTop: 8,
     },
 });
