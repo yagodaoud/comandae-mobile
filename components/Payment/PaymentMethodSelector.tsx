@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, Modal } from 'react-native';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS } from '@/constants/theme';
@@ -6,6 +6,7 @@ import { useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { EmptyState } from '@/components/EmptyState';
 import { QRCodeModal } from './QRCodeModal';
+import { BitcoinPriceService } from '@/utils/BitcoinPriceService';
 
 interface PaymentMethod {
     id: string;
@@ -50,11 +51,32 @@ export const PaymentMethodSelector = ({
     grandTotal,
 }: PaymentMethodSelectorProps) => {
     const [showKeysModal, setShowKeysModal] = useState(false);
-    const [showQRCode, setShowQRCode] = useState(false);
+    const [showQRCodeModal, setShowQRCodeModal] = useState(false);
     const [selectedKey, setSelectedKey] = useState<PaymentKey | null>(null);
+    const [isPix, setIsPix] = useState(true);
+    const [cashInput, setCashInput] = useState('');
+    const [btcPriceInBRL, setBtcPriceInBRL] = useState(0);
+    const [btcPriceError, setBtcPriceError] = useState<string | null>(null);
 
     const pixConfig = useQuery(api.pix.getPixConfig);
     const bitcoinConfig = useQuery(api.bitcoin.getBitcoinConfig);
+
+    useEffect(() => {
+        const fetchBitcoinPrice = async () => {
+            try {
+                setBtcPriceError(null);
+                const price = await BitcoinPriceService.getCurrentBitcoinPriceInBRL();
+                setBtcPriceInBRL(price);
+            } catch (error) {
+                console.error('Error fetching Bitcoin price:', error);
+                setBtcPriceError('Erro ao obter preço do Bitcoin');
+            }
+        };
+
+        fetchBitcoinPrice();
+        const interval = setInterval(fetchBitcoinPrice, 60000); // Update every minute
+        return () => clearInterval(interval);
+    }, []);
 
     const renderIcon = (method: PaymentMethod) => {
         if (method.iconType === 'material') {
@@ -70,7 +92,7 @@ export const PaymentMethodSelector = ({
     const handleKeySelect = (key: PaymentKey) => {
         setSelectedKey(key);
         setShowKeysModal(false);
-        setShowQRCode(true);
+        setShowQRCodeModal(true);
     };
 
     const renderKeysModal = () => {
@@ -207,13 +229,18 @@ export const PaymentMethodSelector = ({
                 </View>
             )}
 
+            {selectedPaymentMethod === 'bitcoin' && btcPriceError && (
+                <Text style={styles.errorText}>{btcPriceError}</Text>
+            )}
+
             {renderKeysModal()}
             <QRCodeModal
-                visible={showQRCode}
-                onClose={() => setShowQRCode(false)}
+                visible={showQRCodeModal}
+                onClose={() => setShowQRCodeModal(false)}
                 selectedKey={selectedKey}
                 isPix={selectedPaymentMethod === 'pix'}
                 amount={grandTotal ? parseFloat(grandTotal) : 0}
+                btcPriceInBRL={btcPriceInBRL}
             />
         </View>
     );
@@ -382,5 +409,11 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: '#666',
         marginTop: 4,
+    },
+    errorText: {
+        color: 'red',
+        fontSize: 12,
+        marginTop: 4,
+        textAlign: 'center',
     },
 });

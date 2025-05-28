@@ -1,72 +1,94 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal } from 'react-native';
+import { View, Text, StyleSheet, Modal, TouchableOpacity, Dimensions } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { COLORS } from '@/constants/theme';
-import { PixQRCode } from './PixQRCode';
-
-interface PixKey {
-    _id: string;
-    type: 'cpf' | 'cnpj' | 'email' | 'phone';
-    key: string;
-    city: string;
-    company_name: string;
-    isActive: boolean;
-}
-
-interface BitcoinKey {
-    _id: string;
-    network: 'mainnet' | 'testnet' | 'lightning';
-    address: string;
-    isActive: boolean;
-}
-
-type PaymentKey = PixKey | BitcoinKey;
+import QRCode from 'react-native-qrcode-svg';
+import { BitcoinQRGenerator } from '@/utils/BitcoinQRGenerator';
 
 interface QRCodeModalProps {
     visible: boolean;
     onClose: () => void;
-    selectedKey: PaymentKey | null;
+    selectedKey: any;
     isPix: boolean;
     amount: number;
+    btcPriceInBRL: number;
 }
 
-export const QRCodeModal = ({ visible, onClose, selectedKey, isPix, amount }: QRCodeModalProps) => {
-    if (!selectedKey) return null;
+export const QRCodeModal = ({
+    visible,
+    onClose,
+    selectedKey,
+    isPix,
+    amount,
+    btcPriceInBRL,
+}: QRCodeModalProps) => {
+    const screenWidth = Dimensions.get('window').width;
+    const qrSize = screenWidth * 0.7; // 70% of screen width
+
+    const renderContent = () => {
+        if (!selectedKey) return null;
+
+        if (isPix) {
+            return (
+                <View style={styles.content}>
+                    <Text style={styles.title}>PIX</Text>
+                    <View style={styles.qrContainer}>
+                        <QRCode
+                            value={`${selectedKey.key}`}
+                            size={qrSize}
+                            backgroundColor="white"
+                        />
+                    </View>
+                    <Text style={styles.address}>{selectedKey.key}</Text>
+                    <Text style={styles.amount}>R$ {amount.toFixed(2)}</Text>
+                </View>
+            );
+        }
+
+        // Bitcoin QR Code
+        const qrData = BitcoinQRGenerator.generateQRCode(
+            selectedKey.address,
+            amount,
+            btcPriceInBRL,
+            selectedKey.network
+        );
+
+        return (
+            <View style={styles.content}>
+                <Text style={styles.title}>Bitcoin</Text>
+                <Text style={styles.address}>{selectedKey.address}</Text>
+                <View style={styles.qrContainer}>
+                    <QRCode
+                        value={qrData}
+                        size={qrSize}
+                        backgroundColor="white"
+                    />
+                </View>
+                <View style={styles.amountContainer}>
+                    <Text style={styles.amount}>R$ {amount.toFixed(2)}</Text>
+                    <Text style={styles.btcAmount}>
+                        {BitcoinQRGenerator.calculateBitcoinAmount(amount, btcPriceInBRL).toFixed(8)} BTC
+                    </Text>
+                </View>
+            </View>
+        );
+    };
 
     return (
         <Modal
             visible={visible}
+            transparent
             animationType="slide"
             onRequestClose={onClose}
         >
-            <View style={styles.qrCodeContainer}>
-                <View style={styles.qrCodeHeader}>
-                    <TouchableOpacity onPress={onClose}>
-                        <Feather name="x" size={24} color="#666" />
-                    </TouchableOpacity>
-                    <Text style={styles.qrCodeTitle}>
-                        {isPix ? 'QR Code PIX' : 'QR Code Bitcoin'}
-                    </Text>
-                    <View style={{ width: 24 }} />
-                </View>
-
-                <View style={styles.qrCodeContent}>
-                    {isPix ? (
-                        <PixQRCode
-                            cnpj={(selectedKey as PixKey).key}
-                            amount={amount}
-                            companyName={(selectedKey as PixKey).company_name}
-                        />
-                    ) : (
-                        <View style={styles.bitcoinContainer}>
-                            <View style={styles.qrCodePlaceholder}>
-                                <Feather name="bitcoin" size={200} color="#ccc" />
-                            </View>
-                            <Text style={styles.qrCodeInfo}>
-                                {(selectedKey as BitcoinKey).address}
-                            </Text>
-                        </View>
-                    )}
+            <View style={styles.modalOverlay}>
+                <View style={styles.modalContent}>
+                    <View style={styles.modalHeader}>
+                        <TouchableOpacity onPress={onClose}>
+                            <Feather name="x" size={24} color="#666" />
+                        </TouchableOpacity>
+                    </View>
+                    {renderContent()}
                 </View>
             </View>
         </Modal>
@@ -74,45 +96,60 @@ export const QRCodeModal = ({ visible, onClose, selectedKey, isPix, amount }: QR
 };
 
 const styles = StyleSheet.create({
-    qrCodeContainer: {
+    modalOverlay: {
         flex: 1,
-        backgroundColor: '#fff',
-    },
-    qrCodeHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'center',
         alignItems: 'center',
-        padding: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: '#f0f0f0',
     },
-    qrCodeTitle: {
-        fontSize: 18,
+    modalContent: {
+        backgroundColor: 'white',
+        borderRadius: 20,
+        padding: 24,
+        width: '90%',
+        alignItems: 'center',
+    },
+    modalHeader: {
+        width: '100%',
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+        marginBottom: 16,
+    },
+    content: {
+        alignItems: 'center',
+        width: '100%',
+    },
+    title: {
+        fontSize: 24,
         fontWeight: '600',
         color: COLORS.secondary,
+        marginBottom: 16,
     },
-    qrCodeContent: {
-        flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 24,
-    },
-    bitcoinContainer: {
-        alignItems: 'center',
-    },
-    qrCodePlaceholder: {
-        width: 250,
-        height: 250,
-        backgroundColor: '#f5f5f5',
+    qrContainer: {
+        padding: 16,
+        backgroundColor: 'white',
         borderRadius: 12,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 24,
+        marginVertical: 16,
     },
-    qrCodeInfo: {
-        fontSize: 14,
-        color: '#666',
+    address: {
+        fontSize: 16,
+        color: '#333',
         textAlign: 'center',
+        marginBottom: 16,
+        paddingHorizontal: 16,
+    },
+    amountContainer: {
+        alignItems: 'center',
         marginTop: 16,
+    },
+    amount: {
+        fontSize: 20,
+        fontWeight: '600',
+        color: COLORS.secondary,
+        marginBottom: 4,
+    },
+    btcAmount: {
+        fontSize: 16,
+        color: '#666',
     },
 }); 
