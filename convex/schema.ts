@@ -66,7 +66,7 @@ export default defineSchema({
         total: v.number(),
         user: v.string(),
         items: v.array(v.string()),
-        paymentType: v.string(),
+        paymentType: v.union(v.literal("cash"), v.literal("card"), v.literal("pix"), v.literal("bitcoin")),
         orderSlipId: v.number(),
     })
         .index("by_user", ["user"])
@@ -118,8 +118,8 @@ export default defineSchema({
 
     bitcoin: defineTable({
         _creationTime: v.number(),
-        network: v.string(),
-        address: v.union(v.literal("mainnet"), v.literal("testnet"), v.literal("lightning")),
+        network: v.union(v.literal("mainnet"), v.literal("testnet"), v.literal("lightning")),
+        address: v.string(),
         isActive: v.boolean(),
     })
         .index("by_network", ["network"])

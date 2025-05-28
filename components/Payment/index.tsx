@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, Platform, BackHandler } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS } from '@/constants/theme';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
@@ -19,10 +20,10 @@ import { ActionButtons } from '@/components/ActionButtons';
 import ViewSlipModal from './ViewSlipModal';
 
 const paymentMethods = [
-    { id: 'cash', name: 'Dinheiro', icon: 'dollar-sign' },
-    { id: 'credit', name: 'Cartão de Crédito', icon: 'credit-card' },
-    { id: 'debit', name: 'Cartão de Débito', icon: 'credit-card' },
-    { id: 'pix', name: 'PIX', icon: 'smartphone' },
+    { id: 'cash', name: 'Dinheiro', icon: 'dollar-sign', iconType: 'feather' },
+    { id: 'card', name: 'Cartão', icon: 'credit-card', iconType: 'feather' },
+    { id: 'pix', name: 'PIX', icon: 'smartphone', iconType: 'feather' },
+    { id: 'bitcoin', name: 'Bitcoin', icon: 'bitcoin', iconType: 'material' },
 ];
 
 const FILTER_OPTIONS = [
@@ -150,6 +151,7 @@ export default function Payment() {
                     title={selectedSlip.table}
                     backButton={true}
                     onBackPress={handleBackPress}
+                    icon={null}
                 />
 
                 <ScrollView
@@ -211,7 +213,10 @@ export default function Payment() {
 
     return (
         <View style={[styles.container, { paddingBottom: insets.bottom }]}>
-            <TransparentHeader title="Pagamento" />
+            <TransparentHeader
+                title="Pagamento"
+                icon={null}
+            />
 
             <SearchBar
                 searchQuery={searchQuery}

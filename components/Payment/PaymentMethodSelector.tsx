@@ -1,12 +1,13 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, TextInput } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
+import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS } from '@/constants/theme';
 
 interface PaymentMethod {
     id: string;
     name: string;
     icon: string;
+    iconType: 'feather' | 'material';
 }
 
 interface PaymentMethodSelectorProps {
@@ -15,27 +16,29 @@ interface PaymentMethodSelectorProps {
     onSelectPaymentMethod: (method: string) => void;
     cashAmount?: string;
     onCashAmountChange?: (amount: string) => void;
-    grandTotal: string;
+    grandTotal?: string;
 }
 
-export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
+export const PaymentMethodSelector = ({
     paymentMethods,
     selectedPaymentMethod,
     onSelectPaymentMethod,
-    cashAmount = '',
+    cashAmount,
     onCashAmountChange,
-    grandTotal
-}) => {
-    const calculateChange = () => {
-        if (!cashAmount) return '0,00';
-        const change = parseFloat(cashAmount.replace(',', '.')) - parseFloat(grandTotal.replace(',', '.'));
-        return change > 0 ? change.toFixed(2).replace('.', ',') : '0,00';
+    grandTotal,
+}: PaymentMethodSelectorProps) => {
+    const renderIcon = (method: PaymentMethod) => {
+        if (method.iconType === 'material') {
+            return <MaterialCommunityIcons name={method.icon} size={20} color={selectedPaymentMethod === method.id ? '#fff' : '#666'} />;
+        }
+        return <Feather name={method.icon} size={20} color={selectedPaymentMethod === method.id ? '#fff' : '#666'} />;
     };
 
     return (
-        <>
+        <View style={styles.container}>
+            <Text style={styles.title}>Forma de Pagamento</Text>
             <View style={styles.paymentMethodsCard}>
-                {paymentMethods.map((method) => (
+                {paymentMethods.map(method => (
                     <TouchableOpacity
                         key={method.id}
                         style={[
@@ -44,26 +47,20 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
                         ]}
                         onPress={() => onSelectPaymentMethod(method.id)}
                     >
-                        <Feather
-                            name={method.icon}
-                            size={20}
-                            color={selectedPaymentMethod === method.id ? '#fff' : '#666'}
-                        />
-                        <Text
-                            style={[
-                                styles.paymentMethodText,
-                                selectedPaymentMethod === method.id && styles.paymentMethodTextActive
-                            ]}
-                        >
+                        {renderIcon(method)}
+                        <Text style={[
+                            styles.paymentMethodText,
+                            selectedPaymentMethod === method.id && styles.paymentMethodTextActive
+                        ]}>
                             {method.name}
                         </Text>
                     </TouchableOpacity>
                 ))}
             </View>
 
-            {selectedPaymentMethod === 'cash' && onCashAmountChange && (
+            {selectedPaymentMethod === 'cash' && (
                 <View style={styles.cashInputContainer}>
-                    <Text style={styles.cashInputLabel}>Valor Recebido:</Text>
+                    <Text style={styles.cashInputLabel}>Valor em Dinheiro</Text>
                     <View style={styles.cashInputWrapper}>
                         <Text style={styles.cashPrefix}>R$</Text>
                         <TextInput
@@ -72,22 +69,33 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
                             onChangeText={onCashAmountChange}
                             keyboardType="numeric"
                             placeholder="0,00"
+                            placeholderTextColor="#999"
                         />
                     </View>
-
-                    {cashAmount && (
+                    {cashAmount && grandTotal && (
                         <View style={styles.changeContainer}>
                             <Text style={styles.changeLabel}>Troco:</Text>
-                            <Text style={styles.changeValue}>R$ {calculateChange()}</Text>
+                            <Text style={styles.changeValue}>
+                                R$ {(parseFloat(cashAmount.replace(',', '.')) - parseFloat(grandTotal)).toFixed(2)}
+                            </Text>
                         </View>
                     )}
                 </View>
             )}
-        </>
+        </View>
     );
 };
 
 const styles = StyleSheet.create({
+    container: {
+        marginBottom: 24,
+    },
+    title: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: COLORS.secondary,
+        marginBottom: 12,
+    },
     paymentMethodsCard: {
         backgroundColor: '#fff',
         borderRadius: 12,
@@ -166,12 +174,11 @@ const styles = StyleSheet.create({
     },
     changeLabel: {
         fontSize: 14,
-        fontWeight: '600',
-        color: '#333',
+        color: '#666',
     },
     changeValue: {
-        fontSize: 16,
-        fontWeight: 'bold',
+        fontSize: 14,
+        fontWeight: '600',
         color: COLORS.secondary,
     },
 });

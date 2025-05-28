@@ -4,15 +4,16 @@ import { useRouter } from 'expo-router';
 import TransparentHeader from '@/components/TransparentHeader';
 import { COLORS } from '@/constants/theme';
 import ConfigItem from '@/components/Config/ConfigItem'; // Assuming a reusable item component
+import { Feather } from '@expo/vector-icons';
 
 export default function PaymentMethodsPage() {
     const router = useRouter();
 
     const paymentMethods = [
         { label: 'Pix', route: '/pix-config' },
-        { label: 'Cartão de Crédito', route: null }, // No specific config page for now
-        { label: 'Cartão de Débito', route: null }, // No specific config page for now
-        { label: 'Dinheiro (Cash)', route: null }, // No specific config page for now
+        { label: 'Bitcoin', route: '/bitcoin-config' },
+        { label: 'Cartão', route: null }, // No specific config page for now
+        { label: 'Dinheiro', route: null }, // No specific config page for now
     ];
 
     return (
@@ -21,6 +22,7 @@ export default function PaymentMethodsPage() {
                 title="Métodos de Pagamento"
                 backButton
                 onBackPress={() => router.back()}
+                icon={null}
             />
             <ScrollView style={styles.content}>
                 <View style={styles.sectionContainer}>
