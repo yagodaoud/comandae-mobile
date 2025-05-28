@@ -7,9 +7,6 @@ interface ActionButtonsProps {
     confirmText: string;
     onCancel: () => void;
     onConfirm: () => void;
-    insets?: {
-        bottom: number;
-    };
     confirmDisabled?: boolean;
 }
 
@@ -18,11 +15,10 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
     confirmText,
     onCancel,
     onConfirm,
-    insets = { bottom: 0 },
     confirmDisabled = false,
 }) => {
     return (
-        <View style={[styles.container, { bottom: insets.bottom > 0 ? insets.bottom : 16 }]}>
+        <View style={styles.container}>
             <TouchableOpacity
                 style={[styles.button, styles.cancelButton]}
                 onPress={onCancel}
@@ -47,15 +43,10 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
 
 const styles = StyleSheet.create({
     container: {
-        position: 'absolute',
-        left: 0,
-        right: 0,
         flexDirection: 'row',
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        backgroundColor: '#fff',
-        borderTopWidth: 1,
-        borderTopColor: '#f0f0f0',
+        justifyContent: 'space-between',
+        paddingHorizontal: 0,
+        paddingVertical: 0,
     },
     button: {
         alignItems: 'center',

@@ -43,15 +43,17 @@ export const getSlips = query({
         // Calculate time differences and determine current status
         const now = Date.now();
         return slips.map((slip) => {
-            const timeDiff = now - slip.lastUpdateTime;
+            const timeDiff = now - (slip.isOpen ? slip.lastUpdateTime : (slip.paymentTime ?? slip.lastUpdateTime));
             let currentStatus = slip.status;
 
-            if (timeDiff > 3600000) { // More than 1 hour
-                currentStatus = "long";
-            } else if (timeDiff > 1800000) { // More than 30 minutes
-                currentStatus = "medium";
-            } else {
-                currentStatus = "recent";
+            if (slip.isOpen) {
+                if (timeDiff > 3600000) { // More than 1 hour
+                    currentStatus = "long";
+                } else if (timeDiff > 1800000) { // More than 30 minutes
+                    currentStatus = "medium";
+                } else {
+                    currentStatus = "recent";
+                }
             }
 
             return {
@@ -120,30 +122,37 @@ export const getSlipsForPayment = query({
 
         let slips = await ctx.db
             .query("slips")
-            .filter((q) => q.neq(q.field("status"), null))
+            .filter((q) => q.neq(q.field("status"), null)) // Keep initial filtering
             .collect();
 
         // Filter by isOpen if provided
         if (isOpen !== undefined) {
-            slips = slips.filter((slip) => {
-                // If isOpen is not set, consider it as open
-                const slipIsOpen = slip.isOpen ?? true;
-                return slipIsOpen === isOpen;
-            });
+            slips = slips.filter((slip) => (slip.isOpen ?? true) === isOpen);
         }
 
         // Filter by search query if provided
         if (searchQuery) {
-            const query = searchQuery.toLowerCase();
+            const lowerSearchQuery = searchQuery.toLowerCase();
             slips = slips.filter((slip) =>
-                slip.table.toLowerCase().includes(query)
+                slip.table.toLowerCase().includes(lowerSearchQuery)
             );
         }
 
-        // Calculate time differences
+        // Calculate time differences and format time (sorting will be client-side)
         const now = Date.now();
         return slips.map((slip) => {
-            const timeDiff = now - slip.lastUpdateTime;
+            const timeDiff = now - (slip.isOpen ? slip.lastUpdateTime : (slip.paymentTime ?? slip._creationTime)); // Keep time calculation
+            const minutes = Math.floor(timeDiff / 60000);
+            let timeStr = '';
+
+            if (minutes < 60) {
+                timeStr = `${minutes}min`;
+            } else {
+                const hours = Math.floor(minutes / 60);
+                const remainingMinutes = minutes % 60;
+                timeStr = `${hours}h ${remainingMinutes}min`;
+            }
+
             return {
                 ...slip,
                 time: formatTimeDiff(timeDiff),

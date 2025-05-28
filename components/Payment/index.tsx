@@ -53,7 +53,7 @@ export default function Payment() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
     const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('credit');
-    const [tipPercentage, setTipPercentage] = useState(10);
+    const [tipPercentage, setTipPercentage] = useState(0);
     const [cashAmount, setCashAmount] = useState('');
     const [selectedSlip, setSelectedSlip] = useState<{ id: Id<"slips">; table: string; total: number; items: any[] } | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
@@ -145,7 +145,7 @@ export default function Payment() {
         const formattedItems = formatOrderItems(selectedSlip.items, products);
 
         return (
-            <View style={[styles.container, { paddingBottom: insets.bottom }]}>
+            <View style={styles.container}>
                 <TransparentHeader
                     title={selectedSlip.table}
                     backButton={true}
@@ -156,7 +156,7 @@ export default function Payment() {
                     style={styles.scrollView}
                     contentContainerStyle={[
                         styles.scrollViewContent,
-                        { paddingBottom: 300 }
+                        { paddingBottom: 80 + 60 + insets.bottom + 32 } // Button height + tab bar + safe area + margin
                     ]}
                 >
                     <View style={styles.section}>
@@ -193,16 +193,18 @@ export default function Payment() {
                         />
                     </View>
 
-                    <View style={styles.actionButtonsContainer}>
+                    {/* Floating Button Bay inside ScrollView */}
+                    <View style={styles.buttonBay}>
                         <ActionButtons
                             cancelText="Voltar"
                             confirmText="Finalizar Pagamento"
                             onCancel={() => setSelectedSlip(null)}
                             onConfirm={handlePayment}
-                            insets={insets}
                         />
                     </View>
                 </ScrollView>
+
+                {/* Remove the fixed floating bay */}
             </View>
         );
     }
@@ -230,29 +232,52 @@ export default function Payment() {
                     { paddingBottom: 60 + (Platform.OS === 'ios' ? insets.bottom : 0) }
                 ]}
             >
-                {slips.map(slip => (
-                    <SlipCard
-                        key={slip._id}
-                        table={slip.table}
-                        items={slip.items.length}
-                        total={slip.total.toFixed(2)}
-                        time={slip.time}
-                        status={slip.isOpen ? 'open' : 'closed'}
-                        onPress={() => {
-                            if (slip.isOpen) {
-                                setSelectedSlip({
-                                    id: slip._id,
-                                    table: slip.table,
-                                    total: slip.total,
-                                    items: slip.items,
-                                });
-                            } else {
-                                setViewingSlip(slip);
-                                setIsViewModalVisible(true);
-                            }
-                        }}
-                    />
-                ))}
+                {/* Sort slips based on active filter (client-side) */}
+                {slips
+                    .slice() // Create a shallow copy to avoid mutating the original array
+                    .sort((a, b) => {
+                        // Sorting for Closed slips (by paymentTime descending)
+                        if (activeFilter === 'closed') {
+                            const timeA = a.paymentTime ?? a._creationTime; // Use _creationTime as fallback
+                            const timeB = b.paymentTime ?? b._creationTime;
+                            return timeB - timeA; // Sort by time descending
+                        }
+
+                        // Sorting for Open and All slips (by time descending)
+                        const timeA = a.isOpen ? a.lastUpdateTime : (a.paymentTime ?? a._creationTime);
+                        const timeB = b.isOpen ? b.lastUpdateTime : (b.paymentTime ?? b._creationTime);
+
+                        // For 'all' filter, prioritize open slips over closed slips first
+                        if (activeFilter === 'all') {
+                            if (a.isOpen && !b.isOpen) return -1; // a (open) comes before b (closed)
+                            if (!a.isOpen && b.isOpen) return 1;  // b (open) comes before a (closed)
+                        }
+
+                        return timeB - timeA; // Sort by time descending
+                    })
+                    .map(slip => (
+                        <SlipCard
+                            key={slip._id}
+                            table={slip.table}
+                            items={slip.items.length}
+                            total={slip.total.toFixed(2)}
+                            time={slip.time}
+                            status={slip.isOpen ? 'open' : 'closed'}
+                            onPress={() => {
+                                if (slip.isOpen) {
+                                    setSelectedSlip({
+                                        id: slip._id,
+                                        table: slip.table,
+                                        total: slip.total,
+                                        items: slip.items,
+                                    });
+                                } else {
+                                    setViewingSlip(slip);
+                                    setIsViewModalVisible(true);
+                                }
+                            }}
+                        />
+                    ))}
 
                 {slips.length === 0 && (
                     <EmptyState
@@ -287,18 +312,17 @@ const styles = StyleSheet.create({
     section: {
         marginBottom: 24,
     },
-    actionButtonsContainer: {
-        marginTop: 24,
-        marginBottom: 16,
-        backgroundColor: COLORS.background,
-        borderTopWidth: 1,
-        borderTopColor: '#f0f0f0',
-        paddingTop: 16,
-        paddingHorizontal: 16,
+    buttonBay: {
+        backgroundColor: '#fff',
+        borderRadius: 12,
+        padding: 16,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: -2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 3,
-        elevation: 5,
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+        elevation: 1,
+        borderWidth: 1,
+        borderColor: '#f0f0f0',
+        marginBottom: 8,
     },
 });

@@ -102,7 +102,8 @@ export default defineSchema({
     })
         .index("by_status", ["status"])
         .index("by_table", ["table"])
-        .index("by_is_open", ["isOpen"]),
+        .index("by_is_open", ["isOpen"])
+        .index("by_payment_time", ["paymentTime"]),
 
     pix: defineTable({
         _creationTime: v.number(),

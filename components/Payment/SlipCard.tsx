@@ -26,6 +26,10 @@ export const SlipCard: React.FC<SlipCardProps> = ({
         return status === 'open' ? 'Aberto' : 'Fechado';
     };
 
+    const formatTime = () => {
+        return status === 'open' ? `Aberta por ${time}` : `Fechada há ${time}`;
+    };
+
     return (
         <TouchableOpacity
             style={[styles.slipCard, { borderLeftColor: getStatusColor() }]}
@@ -34,7 +38,7 @@ export const SlipCard: React.FC<SlipCardProps> = ({
             <View style={styles.slipHeader}>
                 <Text style={styles.slipTitle}>{table}</Text>
                 <View style={[styles.timeContainer]}>
-                    <Text style={styles.timeText}>{time}</Text>
+                    <Text style={styles.timeText}>{formatTime()}</Text>
                     <View style={[styles.statusIndicator, { backgroundColor: getStatusColor() }]}>
                         <Text style={styles.statusText}>{getStatusText()}</Text>
                     </View>
