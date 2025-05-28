@@ -4,6 +4,7 @@ import { Feather } from '@expo/vector-icons';
 import { COLORS } from '@/constants/theme';
 import QRCode from 'react-native-qrcode-svg';
 import { BitcoinQRGenerator } from '@/utils/BitcoinQRGenerator';
+import { PixQRGenerator } from '@/utils/PixQRGenerator';
 
 interface QRCodeModalProps {
     visible: boolean;
@@ -29,18 +30,23 @@ export const QRCodeModal = ({
         if (!selectedKey) return null;
 
         if (isPix) {
+            const pixQRCode = PixQRGenerator.generatePixCode(selectedKey.key, amount);
+
             return (
                 <View style={styles.content}>
                     <Text style={styles.title}>PIX</Text>
+                    <Text style={styles.companyName}>{selectedKey.company_name}</Text>
+                    <Text style={styles.address}>{selectedKey.key}</Text>
                     <View style={styles.qrContainer}>
                         <QRCode
-                            value={`${selectedKey.key}`}
+                            value={pixQRCode}
                             size={qrSize}
                             backgroundColor="white"
                         />
                     </View>
-                    <Text style={styles.address}>{selectedKey.key}</Text>
-                    <Text style={styles.amount}>R$ {amount.toFixed(2)}</Text>
+                    <View style={styles.amountContainer}>
+                        <Text style={styles.amount}>R$ {amount.toFixed(2)}</Text>
+                    </View>
                 </View>
             );
         }
@@ -125,6 +131,13 @@ const styles = StyleSheet.create({
         color: COLORS.secondary,
         marginBottom: 16,
     },
+    companyName: {
+        fontSize: 18,
+        color: '#333',
+        textAlign: 'center',
+        marginBottom: 8,
+        paddingHorizontal: 16,
+    },
     qrContainer: {
         padding: 16,
         backgroundColor: 'white',
@@ -152,4 +165,4 @@ const styles = StyleSheet.create({
         fontSize: 16,
         color: '#666',
     },
-}); 
+});
