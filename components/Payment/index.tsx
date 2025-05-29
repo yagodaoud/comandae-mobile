@@ -117,7 +117,7 @@ export default function Payment() {
     useEffect(() => {
         if (params.slipId && !selectedSlip) {
             setActiveFilter('open');
-            const slip = slips.find(s => s._id === params.slipId);
+            const slip = slips?.find(s => s._id === params.slipId);
             if (slip) {
                 setSelectedSlip({
                     id: slip._id,
