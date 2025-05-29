@@ -99,6 +99,19 @@ const CategorySection = memo(({
 
     if (dishes.length === 0) return null;
 
+    // Memoize the dishes list to prevent unnecessary re-renders
+    const dishItems = useMemo(() =>
+        dishes.map(dish => (
+            <DishItem
+                key={dish._id}
+                dish={dish}
+                isSelected={selectedDishIds.has(dish._id)}
+                onToggle={onToggleDish}
+            />
+        )),
+        [dishes, selectedDishIds, onToggleDish]
+    );
+
     return (
         <View style={styles.categorySection}>
             <View style={styles.categoryHeaderContainer}>
@@ -137,14 +150,7 @@ const CategorySection = memo(({
                         setContentHeight(height);
                     }}
                 >
-                    {dishes.map(dish => (
-                        <DishItem
-                            key={dish._id}
-                            dish={dish}
-                            isSelected={selectedDishIds.has(dish._id)}
-                            onToggle={onToggleDish}
-                        />
-                    ))}
+                    {dishItems}
                 </View>
             </Animated.View>
         </View>
@@ -170,26 +176,24 @@ export const DishSelectionModal: React.FC<DishSelectionModalProps> = ({
     }, [categories]);
 
     const dishesByCategory = useMemo(() => {
-        const grouped = new Map<Id<'dish_categories'>, Doc<'dishes'>[]>();
+        if (!categories) return new Map();
 
-        if (!categories) return grouped;
+        // Pre-allocate the map with empty arrays
+        const grouped = new Map(
+            categories.map(category => [category._id, []])
+        );
 
-        for (const category of categories) {
-            grouped.set(category._id, []);
-        }
-
+        // Process matched dishes first (usually smaller set)
         for (const dish of matchedDishes) {
-            const categoryDishes = grouped.get(dish.categoryId);
-            if (categoryDishes) {
-                categoryDishes.push(dish);
-            }
+            grouped.get(dish.categoryId)?.push(dish);
         }
 
-        for (const dish of allDishes) {
-            if (!matchedDishes.some(matched => matched._id === dish._id)) {
-                const categoryDishes = grouped.get(dish.categoryId);
-                if (categoryDishes) {
-                    categoryDishes.push(dish);
+        // Process remaining dishes only if needed
+        if (matchedDishes.length < allDishes.length) {
+            const matchedIds = new Set(matchedDishes.map(d => d._id));
+            for (const dish of allDishes) {
+                if (!matchedIds.has(dish._id)) {
+                    grouped.get(dish.categoryId)?.push(dish);
                 }
             }
         }
@@ -247,9 +251,15 @@ export const DishSelectionModal: React.FC<DishSelectionModalProps> = ({
                             showsVerticalScrollIndicator={true}
                             contentContainerStyle={styles.categoriesList}
                             removeClippedSubviews={true}
-                            initialNumToRender={5}
-                            maxToRenderPerBatch={5}
-                            windowSize={5}
+                            initialNumToRender={3}
+                            maxToRenderPerBatch={3}
+                            windowSize={3}
+                            updateCellsBatchingPeriod={50}
+                            getItemLayout={(data, index) => ({
+                                length: 80, // Approximate height of each category
+                                offset: 80 * index,
+                                index,
+                            })}
                         />
                     </View>
 
