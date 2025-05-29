@@ -51,7 +51,7 @@ const CategoriesSection: React.FC = () => {
                 <CategoryCard
                     icon={<Feather name="shopping-bag" size={24} color={COLORS.primary} />}
                     count={formatCount(todayOrdersCount, 'Comanda fechada', 'Comandas fechadas')}
-                    title="Pedidos"
+                    title="Pagamento"
                     screenName="payment"
                     navigationParams={{ filter: 'open' }}
                 />
