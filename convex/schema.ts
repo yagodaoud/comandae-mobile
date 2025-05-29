@@ -29,17 +29,13 @@ export default defineSchema({
 
     menu_headers: defineTable({
         _creationTime: v.number(),
-        name: v.string(),
-        header: v.string(),
-        isActive: v.boolean(),
-    }).index("by_name", ["name"]),
+        content: v.string(),
+    }),
 
     menu_footers: defineTable({
         _creationTime: v.number(),
-        name: v.string(),
-        isActive: v.boolean(),
-        footer: v.string(),
-    }).index("by_name", ["name"]),
+        content: v.string(),
+    }),
 
     products: defineTable({
         _creationTime: v.number(),

@@ -1,12 +1,14 @@
 import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert, Platform, Keyboard, KeyboardAvoidingView, TouchableOpacity } from 'react-native';
 import { COLORS } from '@/constants/theme';
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
-import { useRouter } from 'expo-router';
 import { Doc, Id } from '@/convex/_generated/dataModel';
 import { Ionicons } from '@expo/vector-icons';
+import TransparentHeader from '@/components/TransparentHeader';
+import { useQuery, useMutation } from 'convex/react';
+import { api } from '@/convex/_generated/api';
 
 import ImageUploadSection from './ImageUploadSection';
 import ProcessButton from './ProcessButton';
@@ -15,9 +17,6 @@ import TextEditorSection from './TextEditorSection';
 import { DishSelectionModal } from './DishSelectionModal';
 import { matchDishesWithOCR, processImageWithOCR, generateMenuContent } from '@/utils/ocrUtils';
 import { useAllDishes } from '../hooks/useDishes';
-
-const INITIAL_MENU_HEADER = "Bom dia!\n\nSegue o cardápio para marmitex:";
-const INITIAL_MENU_FOOTER = "📃Cardápio sujeito a alteração ao longo do expediente.\n📝 Para realizar seu pedido, mande a mensagem no privado da conta do Restaurante Cozinha & Cia.\n👨‍🍳Nosso tempero é nosso toque!\n🍝Self service | Marmitex \n📍Seg. a Sáb. - 11h às 14h\n📞3403-7869\n📞98141-4737 \n❤Amamos a Cozinha & a Sua CIA";
 
 interface State {
     imageUri: string | null;
@@ -64,8 +63,8 @@ export default function MenuGenerationScreen() {
 
     const [state, setState] = useState<State>({
         imageUri: null,
-        headerText: INITIAL_MENU_HEADER,
-        footerText: INITIAL_MENU_FOOTER,
+        headerText: '',
+        footerText: '',
         isProcessing: false,
         generatedMenu: null,
         matchedDishes: [],
@@ -80,6 +79,24 @@ export default function MenuGenerationScreen() {
     }), []);
 
     const { dishes, isLoading } = useAllDishes();
+
+    // Get active header and footer from Convex
+    const activeHeader = useQuery(api.menu.getActiveHeader);
+    const activeFooter = useQuery(api.menu.getActiveFooter);
+
+    // Mutations for updating header and footer
+    const upsertHeader = useMutation(api.menu.upsertHeader);
+    const upsertFooter = useMutation(api.menu.upsertFooter);
+
+    // Update state when active header/footer changes
+    useEffect(() => {
+        if (activeHeader) {
+            setState(prev => ({ ...prev, headerText: activeHeader.content }));
+        }
+        if (activeFooter) {
+            setState(prev => ({ ...prev, footerText: activeFooter.content }));
+        }
+    }, [activeHeader, activeFooter]);
 
     useEffect(() => {
         return () => { };
@@ -227,13 +244,29 @@ export default function MenuGenerationScreen() {
         }));
     }, []);
 
-    const handleHeaderChange = useCallback((text: string) => {
+    const handleHeaderChange = useCallback(async (text: string) => {
         setState(prev => ({ ...prev, headerText: text }));
-    }, []);
+        try {
+            await upsertHeader({
+                content: text
+            });
+        } catch (error) {
+            console.error("Error updating header:", error);
+            Alert.alert("Erro", "Não foi possível salvar o cabeçalho.");
+        }
+    }, [upsertHeader]);
 
-    const handleFooterChange = useCallback((text: string) => {
+    const handleFooterChange = useCallback(async (text: string) => {
         setState(prev => ({ ...prev, footerText: text }));
-    }, []);
+        try {
+            await upsertFooter({
+                content: text
+            });
+        } catch (error) {
+            console.error("Error updating footer:", error);
+            Alert.alert("Erro", "Não foi possível salvar o rodapé.");
+        }
+    }, [upsertFooter]);
 
     const handleGeneratePress = useCallback(() => {
         setState(prev => ({
@@ -243,6 +276,10 @@ export default function MenuGenerationScreen() {
         }));
     }, []);
 
+    const handleBackPress = () => {
+        router.back();
+    };
+
     return (
         <KeyboardAvoidingView
             behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -250,16 +287,20 @@ export default function MenuGenerationScreen() {
             keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
         >
             <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+                <TransparentHeader
+                    title="Gerar Cardápio"
+                    backButton={true}
+                    onBackPress={handleBackPress}
+                    icon={null}
+                />
+
                 <ScrollView
                     ref={scrollViewRef}
                     contentContainerStyle={styles.scrollContainer}
                     keyboardShouldPersistTaps="handled"
                     showsVerticalScrollIndicator={false}
                 >
-                    <View style={styles.header}>
-                        <Text style={styles.title}>Gerar Cardápio</Text>
-                        <Text style={styles.subtitle}>Escolha como deseja gerar o cardápio</Text>
-                    </View>
+                    <Text style={styles.subtitle}>Escolha como deseja gerar o cardápio:</Text>
 
                     <View style={styles.actionsContainer}>
                         <ActionCard
@@ -306,6 +347,8 @@ export default function MenuGenerationScreen() {
                             initialText={state.headerText}
                             onTextChange={handleHeaderChange}
                             placeholder="Digite o cabeçalho do cardápio..."
+                            emptyIcon="type"
+                            emptyLabel="Nenhum cabeçalho definido"
                         />
 
                         <TextEditorSection
@@ -314,6 +357,8 @@ export default function MenuGenerationScreen() {
                             initialText={state.footerText}
                             onTextChange={handleFooterChange}
                             placeholder="Digite o rodapé do cardápio..."
+                            emptyIcon="file-text"
+                            emptyLabel="Nenhum rodapé definido"
                         />
                     </View>
                 </ScrollView>
@@ -344,19 +389,6 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
         paddingTop: 15,
         paddingBottom: 120,
-    },
-    header: {
-        marginBottom: 32,
-    },
-    title: {
-        fontSize: 28,
-        fontWeight: '700',
-        color: COLORS.black,
-        marginBottom: 8,
-    },
-    subtitle: {
-        fontSize: 16,
-        color: COLORS.gray[500],
     },
     actionsContainer: {
         gap: 16,
@@ -414,5 +446,10 @@ const styles = StyleSheet.create({
     editorContainer: {
         gap: 16,
         marginTop: 8,
+    },
+    subtitle: {
+        fontSize: 16,
+        color: COLORS.gray[500],
+        marginBottom: 24,
     },
 });

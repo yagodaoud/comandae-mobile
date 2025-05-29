@@ -116,3 +116,73 @@ export const deleteDish = mutation({
     return await ctx.db.delete(args.id);
   },
 });
+
+// Get active header
+export const getActiveHeader = query({
+  handler: async (ctx) => {
+    const header = await ctx.db
+      .query("menu_headers")
+      .first();
+    return header;
+  },
+});
+
+// Get active footer
+export const getActiveFooter = query({
+  handler: async (ctx) => {
+    const footer = await ctx.db
+      .query("menu_footers")
+      .first();
+    return footer;
+  },
+});
+
+// Create or update header
+export const upsertHeader = mutation({
+  args: {
+    content: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // Get existing header
+    const existingHeader = await ctx.db
+      .query("menu_headers")
+      .first();
+
+    if (existingHeader) {
+      // Update existing header
+      return await ctx.db.patch(existingHeader._id, {
+        content: args.content,
+      });
+    } else {
+      // Create new header
+      return await ctx.db.insert("menu_headers", {
+        content: args.content,
+      });
+    }
+  },
+});
+
+// Create or update footer
+export const upsertFooter = mutation({
+  args: {
+    content: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // Get existing footer
+    const existingFooter = await ctx.db
+      .query("menu_footers")
+      .first();
+
+    if (existingFooter) {
+      // Update existing footer
+      return await ctx.db.patch(existingFooter._id, {
+        content: args.content,
+      });
+    } else {
+      // Create new footer
+      return await ctx.db.insert("menu_footers", {
+        content: args.content,
+      });
+    }
+  },
+});
