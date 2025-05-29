@@ -58,8 +58,8 @@ export const PaymentMethodSelector = ({
     const [btcPriceInBRL, setBtcPriceInBRL] = useState(0);
     const [btcPriceError, setBtcPriceError] = useState<string | null>(null);
 
-    const pixConfig = useQuery(api.pix.getPixConfig);
-    const bitcoinConfig = useQuery(api.bitcoin.getBitcoinConfig);
+    const pixConfigs = useQuery(api.pix.getPixConfigs);
+    const bitcoinConfigs = useQuery(api.bitcoin.getBitcoinConfigs);
 
     useEffect(() => {
         const fetchBitcoinPrice = async () => {
@@ -99,10 +99,10 @@ export const PaymentMethodSelector = ({
         const isPix = selectedPaymentMethod === 'pix';
         const keys: PaymentKey[] = [];
 
-        if (isPix && pixConfig) {
-            keys.push(pixConfig as PixKey);
-        } else if (!isPix && bitcoinConfig) {
-            keys.push(bitcoinConfig as BitcoinKey);
+        if (isPix && pixConfigs) {
+            keys.push(...pixConfigs.filter(config => config.isActive));
+        } else if (!isPix && bitcoinConfigs) {
+            keys.push(...bitcoinConfigs.filter(config => config.isActive));
         }
 
         return (

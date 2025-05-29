@@ -1,11 +1,10 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
-export const getPixConfig = query({
+export const getPixConfigs = query({
     handler: async (ctx) => {
-        // Fetch the first pix configuration found. Assuming there's ideally only one.
-        const pixConfig = await ctx.db.query("pix").take(1);
-        return pixConfig.length > 0 ? pixConfig[0] : null; // Return the first one or null
+        const pixConfigs = await ctx.db.query("pix").collect();
+        return pixConfigs;
     },
 });
 
@@ -36,5 +35,14 @@ export const updatePixConfig = mutation({
     handler: async (ctx, args) => {
         const { _id, ...rest } = args;
         await ctx.db.patch(_id, rest);
+    },
+});
+
+export const deletePixConfig = mutation({
+    args: {
+        _id: v.id("pix"),
+    },
+    handler: async (ctx, args) => {
+        await ctx.db.delete(args._id);
     },
 }); 

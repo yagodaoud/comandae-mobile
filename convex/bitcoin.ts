@@ -1,10 +1,10 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
-export const getBitcoinConfig = query({
+export const getBitcoinConfigs = query({
     handler: async (ctx) => {
-        const bitcoinConfig = await ctx.db.query("bitcoin").take(1);
-        return bitcoinConfig.length > 0 ? bitcoinConfig[0] : null;
+        const bitcoinConfigs = await ctx.db.query("bitcoin").collect();
+        return bitcoinConfigs;
     },
 });
 
@@ -31,5 +31,14 @@ export const updateBitcoinConfig = mutation({
     handler: async (ctx, args) => {
         const { _id, ...rest } = args;
         await ctx.db.patch(_id, rest);
+    },
+});
+
+export const deleteBitcoinConfig = mutation({
+    args: {
+        _id: v.id("bitcoin"),
+    },
+    handler: async (ctx, args) => {
+        await ctx.db.delete(args._id);
     },
 }); 

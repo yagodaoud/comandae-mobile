@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Text, TextInput, TouchableOpacity, ActivityIndicator, Switch } from 'react-native';
+import { View, StyleSheet, ScrollView, Text, TextInput, TouchableOpacity, ActivityIndicator, Switch, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import TransparentHeader from '@/components/TransparentHeader';
 import { COLORS } from '@/constants/theme';
@@ -15,33 +15,30 @@ const KEY_TYPES = [
     { id: 'phone', name: 'Telefone' },
 ] as const;
 
+const DEFAULT_FORM_DATA = {
+    type: 'cnpj',
+    key: '',
+    city: '',
+    company_name: '',
+    isActive: false,
+} as const;
+
 export default function PixConfigPage() {
     const router = useRouter();
-    const pixConfig = useQuery(api.pix.getPixConfig);
+    const pixConfigs = useQuery(api.pix.getPixConfigs);
 
     const [isEditing, setIsEditing] = useState(false);
-    const [formData, setFormData] = useState<Partial<Doc<"pix">>>({
-        type: 'cnpj',
-        key: '',
-        city: '',
-        company_name: '',
-        isActive: false,
-    });
+    const [editingId, setEditingId] = useState<string | null>(null);
+    const [formData, setFormData] = useState<Partial<Doc<"pix">>>(DEFAULT_FORM_DATA);
 
     const [errors, setErrors] = useState<Record<string, boolean>>({});
 
     const createPix = useMutation(api.pix.createPixConfig);
     const updatePix = useMutation(api.pix.updatePixConfig);
-
-    useEffect(() => {
-        if (pixConfig) {
-            setFormData(pixConfig);
-        }
-    }, [pixConfig]);
+    const deletePix = useMutation(api.pix.deletePixConfig);
 
     const handleInputChange = (field: keyof Partial<Doc<"pix">>, value: any) => {
         setFormData({ ...formData, [field]: value });
-        // Clear error when field is modified
         if (errors[field]) {
             setErrors(prev => ({ ...prev, [field]: false }));
         }
@@ -58,19 +55,52 @@ export default function PixConfigPage() {
         return Object.keys(newErrors).length === 0;
     };
 
+    const handleNewRecord = () => {
+        setEditingId(null);
+        setIsEditing(true);
+        setFormData(DEFAULT_FORM_DATA);
+        setErrors({});
+    };
+
+    const handleEdit = (config: Doc<"pix">) => {
+        setEditingId(config._id);
+        setIsEditing(true);
+        setFormData(config);
+        setErrors({});
+    };
+
+    const handleDelete = (id: string) => {
+        Alert.alert(
+            "Confirmar exclusão",
+            "Tem certeza que deseja excluir este registro?",
+            [
+                {
+                    text: "Cancelar",
+                    style: "cancel"
+                },
+                {
+                    text: "Excluir",
+                    style: "destructive",
+                    onPress: async () => {
+                        try {
+                            await deletePix({ _id: id });
+                            console.log("Pix configuration deleted successfully!");
+                        } catch (error) {
+                            console.error("Failed to delete Pix configuration:", error);
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
     const toggleEditing = async () => {
         if (isEditing) {
             if (!validateForm()) {
                 return;
             }
             try {
-                if (pixConfig) {
-                    await updatePix({
-                        _id: pixConfig._id,
-                        _creationTime: pixConfig._creationTime,
-                        ...formData
-                    } as Doc<"pix">);
-                } else {
+                if (editingId === null) {
                     if (formData.type && formData.key && formData.city && formData.company_name !== undefined && formData.isActive !== undefined) {
                         await createPix({
                             type: formData.type,
@@ -80,16 +110,26 @@ export default function PixConfigPage() {
                             isActive: formData.isActive,
                         });
                     }
+                } else {
+                    const config = pixConfigs?.find(c => c._id === editingId);
+                    if (config) {
+                        await updatePix({
+                            _id: config._id,
+                            _creationTime: config._creationTime,
+                            ...formData
+                        } as Doc<"pix">);
+                    }
                 }
                 console.log("Pix configuration saved successfully!");
             } catch (error) {
                 console.error("Failed to save Pix configuration:", error);
             }
         }
-        setIsEditing(!isEditing);
+        setIsEditing(false);
+        setEditingId(null);
     };
 
-    if (pixConfig === undefined) {
+    if (pixConfigs === undefined) {
         return (
             <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color={COLORS.secondary} />
@@ -97,106 +137,178 @@ export default function PixConfigPage() {
         );
     }
 
+    const renderConfigForm = () => (
+        <View style={styles.configContainer}>
+            {/* Type Field (Category Selector Style) */}
+            <Text style={[styles.label, errors.type && styles.errorLabel]}>Tipo de Chave*</Text>
+            <View style={styles.categoryContainer}>
+                {KEY_TYPES.map(type => (
+                    <TouchableOpacity
+                        key={type.id}
+                        style={[
+                            styles.categoryButton,
+                            formData.type === type.id && styles.selectedCategory,
+                            errors.type && styles.errorBorder
+                        ]}
+                        onPress={() => handleInputChange('type', type.id)}
+                        disabled={!isEditing}
+                    >
+                        <Text style={[
+                            styles.categoryText,
+                            formData.type === type.id && styles.selectedCategoryText
+                        ]}>
+                            {type.name}
+                        </Text>
+                    </TouchableOpacity>
+                ))}
+            </View>
+
+            {/* Key Field */}
+            <Text style={[styles.label, errors.key && styles.errorLabel]}>Chave Pix*</Text>
+            <View style={[styles.fieldContainer, errors.key && styles.errorBorder]}>
+                {isEditing ? (
+                    <TextInput
+                        style={styles.valueInput}
+                        value={formData.key}
+                        onChangeText={(text) => handleInputChange('key', text)}
+                        placeholder="Digite a chave pix"
+                        placeholderTextColor={COLORS.lightGray}
+                    />
+                ) : (
+                    <Text style={styles.value}>{formData.key}</Text>
+                )}
+            </View>
+
+            {/* Company Name Field */}
+            <Text style={[styles.label, errors.company_name && styles.errorLabel]}>Nome da Empresa*</Text>
+            <View style={[styles.fieldContainer, errors.company_name && styles.errorBorder]}>
+                {isEditing ? (
+                    <TextInput
+                        style={styles.valueInput}
+                        value={formData.company_name}
+                        onChangeText={(text) => handleInputChange('company_name', text)}
+                        placeholder="Digite o nome da empresa"
+                        placeholderTextColor={COLORS.lightGray}
+                    />
+                ) : (
+                    <Text style={styles.value}>{formData.company_name}</Text>
+                )}
+            </View>
+
+            {/* City Field */}
+            <Text style={[styles.label, errors.city && styles.errorLabel]}>Cidade*</Text>
+            <View style={[styles.fieldContainer, errors.city && styles.errorBorder]}>
+                {isEditing ? (
+                    <TextInput
+                        style={styles.valueInput}
+                        value={formData.city}
+                        onChangeText={(text) => handleInputChange('city', text)}
+                        placeholder="Digite a cidade"
+                        placeholderTextColor={COLORS.lightGray}
+                    />
+                ) : (
+                    <Text style={styles.value}>{formData.city}</Text>
+                )}
+            </View>
+
+            {/* Is Active Toggle */}
+            <Text style={styles.label}>Ativo:</Text>
+            <View style={styles.fieldContainer}>
+                {isEditing ? (
+                    <Switch
+                        onValueChange={(value) => handleInputChange('isActive', value)}
+                        value={formData.isActive}
+                        thumbColor={formData.isActive ? COLORS.secondary : '#fff'}
+                        ios_backgroundColor={COLORS.lightGray}
+                        trackColor={{ false: COLORS.lightGray, true: COLORS.secondary }}
+                    />
+                ) : (
+                    <Text style={styles.value}>{formData.isActive ? 'Sim' : 'Não'}</Text>
+                )}
+            </View>
+
+            {isEditing && (
+                <View style={styles.editActions}>
+                    <TouchableOpacity
+                        style={[styles.actionButton, styles.saveButton]}
+                        onPress={toggleEditing}
+                    >
+                        <Feather name="check" size={20} color={COLORS.white} />
+                        <Text style={styles.actionButtonText}>Salvar</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.actionButton, styles.cancelButton]}
+                        onPress={() => {
+                            setIsEditing(false);
+                            setEditingId(null);
+                            setFormData(DEFAULT_FORM_DATA);
+                        }}
+                    >
+                        <Feather name="x" size={20} color={COLORS.white} />
+                        <Text style={styles.actionButtonText}>Cancelar</Text>
+                    </TouchableOpacity>
+                </View>
+            )}
+        </View>
+    );
+
     return (
         <View style={styles.container}>
             <TransparentHeader
                 title="Configuração Pix"
                 backButton
                 onBackPress={() => router.back()}
-                icon={<TouchableOpacity onPress={toggleEditing}>
-                    <Feather name={isEditing ? "check" : "edit-2"} size={24} color={COLORS.secondary} />
-                </TouchableOpacity>}
             />
             <ScrollView style={styles.content}>
-                <View style={styles.configContainer}>
-                    {/* Type Field (Category Selector Style) */}
-                    <Text style={[styles.label, errors.type && styles.errorLabel]}>Tipo de Chave*</Text>
-                    <View style={styles.categoryContainer}>
-                        {KEY_TYPES.map(type => (
-                            <TouchableOpacity
-                                key={type.id}
-                                style={[
-                                    styles.categoryButton,
-                                    formData.type === type.id && styles.selectedCategory,
-                                    errors.type && styles.errorBorder
-                                ]}
-                                onPress={() => handleInputChange('type', type.id)}
-                                disabled={!isEditing}
-                            >
-                                <Text style={[
-                                    styles.categoryText,
-                                    formData.type === type.id && styles.selectedCategoryText
-                                ]}>
-                                    {type.name}
-                                </Text>
-                            </TouchableOpacity>
-                        ))}
-                    </View>
-
-                    {/* Key Field */}
-                    <Text style={[styles.label, errors.key && styles.errorLabel]}>Chave Pix*</Text>
-                    <View style={[styles.fieldContainer, errors.key && styles.errorBorder]}>
-                        {isEditing ? (
-                            <TextInput
-                                style={styles.valueInput}
-                                value={formData.key}
-                                onChangeText={(text) => handleInputChange('key', text)}
-                                placeholder="Digite a chave pix"
-                                placeholderTextColor={COLORS.lightGray}
-                            />
+                {pixConfigs.map((config) => (
+                    <View key={config._id} style={styles.configWrapper}>
+                        {editingId === config._id ? (
+                            renderConfigForm()
                         ) : (
-                            <Text style={styles.value}>{formData.key}</Text>
+                            <View style={styles.configContainer}>
+                                <View style={styles.configHeader}>
+                                    <Text style={styles.configTitle}>
+                                        {KEY_TYPES.find(t => t.id === config.type)?.name}
+                                    </Text>
+                                    <View style={styles.headerActions}>
+                                        <TouchableOpacity
+                                            onPress={() => handleEdit(config)}
+                                            style={styles.headerButton}
+                                        >
+                                            <Feather name="edit-2" size={20} color={COLORS.secondary} />
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            onPress={() => handleDelete(config._id)}
+                                            style={styles.headerButton}
+                                        >
+                                            <Feather name="trash-2" size={20} color={COLORS.error} />
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
+                                <Text style={styles.label}>Chave Pix:</Text>
+                                <Text style={styles.value}>{config.key}</Text>
+                                <Text style={styles.label}>Nome da Empresa:</Text>
+                                <Text style={styles.value}>{config.company_name}</Text>
+                                <Text style={styles.label}>Cidade:</Text>
+                                <Text style={styles.value}>{config.city}</Text>
+                                <Text style={styles.label}>Ativo:</Text>
+                                <Text style={styles.value}>{config.isActive ? 'Sim' : 'Não'}</Text>
+                            </View>
                         )}
                     </View>
+                ))}
 
-                    {/* Company Name Field */}
-                    <Text style={[styles.label, errors.company_name && styles.errorLabel]}>Nome da Empresa*</Text>
-                    <View style={[styles.fieldContainer, errors.company_name && styles.errorBorder]}>
-                        {isEditing ? (
-                            <TextInput
-                                style={styles.valueInput}
-                                value={formData.company_name}
-                                onChangeText={(text) => handleInputChange('company_name', text)}
-                                placeholder="Digite o nome da empresa"
-                                placeholderTextColor={COLORS.lightGray}
-                            />
-                        ) : (
-                            <Text style={styles.value}>{formData.company_name}</Text>
-                        )}
-                    </View>
+                {isEditing && editingId === null && renderConfigForm()}
 
-                    {/* City Field */}
-                    <Text style={[styles.label, errors.city && styles.errorLabel]}>Cidade*</Text>
-                    <View style={[styles.fieldContainer, errors.city && styles.errorBorder]}>
-                        {isEditing ? (
-                            <TextInput
-                                style={styles.valueInput}
-                                value={formData.city}
-                                onChangeText={(text) => handleInputChange('city', text)}
-                                placeholder="Digite a cidade"
-                                placeholderTextColor={COLORS.lightGray}
-                            />
-                        ) : (
-                            <Text style={styles.value}>{formData.city}</Text>
-                        )}
-                    </View>
-
-                    {/* Is Active Toggle */}
-                    <Text style={styles.label}>Ativo:</Text>
-                    <View style={styles.fieldContainer}>
-                        {isEditing ? (
-                            <Switch
-                                onValueChange={(value) => handleInputChange('isActive', value)}
-                                value={formData.isActive}
-                                thumbColor={formData.isActive ? COLORS.secondary : '#fff'}
-                                ios_backgroundColor={COLORS.lightGray}
-                                trackColor={{ false: COLORS.lightGray, true: COLORS.secondary }}
-                            />
-                        ) : (
-                            <Text style={styles.value}>{formData.isActive ? 'Sim' : 'Não'}</Text>
-                        )}
-                    </View>
-                </View>
+                {!isEditing && (
+                    <TouchableOpacity
+                        style={styles.newRecordButton}
+                        onPress={handleNewRecord}
+                    >
+                        <Feather name="plus" size={20} color={COLORS.white} />
+                        <Text style={styles.newRecordButtonText}>Novo Registro</Text>
+                    </TouchableOpacity>
+                )}
             </ScrollView>
         </View>
     );
@@ -217,10 +329,24 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         backgroundColor: COLORS.background,
     },
+    configWrapper: {
+        marginBottom: 16,
+    },
     configContainer: {
         backgroundColor: COLORS.white,
         borderRadius: 12,
         padding: 16,
+    },
+    configHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 12,
+    },
+    configTitle: {
+        fontSize: 18,
+        fontWeight: '600',
+        color: COLORS.secondary,
     },
     label: {
         fontSize: 16,
@@ -279,5 +405,51 @@ const styles = StyleSheet.create({
     selectedCategory: {
         backgroundColor: COLORS.secondary,
         borderColor: COLORS.secondary,
+    },
+    newRecordButton: {
+        backgroundColor: COLORS.secondary,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 12,
+        borderRadius: 8,
+        marginTop: 16,
+        gap: 8,
+    },
+    newRecordButtonText: {
+        color: COLORS.white,
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    editActions: {
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+        gap: 12,
+        marginTop: 16,
+    },
+    actionButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 8,
+        borderRadius: 6,
+        gap: 4,
+    },
+    saveButton: {
+        backgroundColor: COLORS.secondary,
+    },
+    cancelButton: {
+        backgroundColor: COLORS.gray,
+    },
+    actionButtonText: {
+        color: COLORS.white,
+        fontSize: 14,
+        fontWeight: '600',
+    },
+    headerActions: {
+        flexDirection: 'row',
+        gap: 12,
+    },
+    headerButton: {
+        padding: 4,
     },
 }); 

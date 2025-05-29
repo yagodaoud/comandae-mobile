@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Text, TextInput, TouchableOpacity, ActivityIndicator, Switch } from 'react-native';
+import { View, StyleSheet, ScrollView, Text, TextInput, TouchableOpacity, ActivityIndicator, Switch, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import TransparentHeader from '@/components/TransparentHeader';
 import { COLORS } from '@/constants/theme';
@@ -14,27 +14,25 @@ const NETWORK_TYPES = [
     { id: 'lightning', name: 'Lightning' },
 ] as const;
 
+const DEFAULT_FORM_DATA = {
+    network: 'mainnet',
+    address: '',
+    isActive: false,
+} as const;
+
 export default function BitcoinConfigPage() {
     const router = useRouter();
-    const bitcoinConfig = useQuery(api.bitcoin.getBitcoinConfig);
+    const bitcoinConfigs = useQuery(api.bitcoin.getBitcoinConfigs);
 
     const [isEditing, setIsEditing] = useState(false);
-    const [formData, setFormData] = useState<Partial<Doc<"bitcoin">>>({
-        network: 'mainnet',
-        address: '',
-        isActive: false,
-    });
+    const [editingId, setEditingId] = useState<string | null>(null);
+    const [formData, setFormData] = useState<Partial<Doc<"bitcoin">>>(DEFAULT_FORM_DATA);
 
     const [errors, setErrors] = useState<Record<string, boolean>>({});
 
     const createBitcoin = useMutation(api.bitcoin.createBitcoinConfig);
     const updateBitcoin = useMutation(api.bitcoin.updateBitcoinConfig);
-
-    useEffect(() => {
-        if (bitcoinConfig) {
-            setFormData(bitcoinConfig);
-        }
-    }, [bitcoinConfig]);
+    const deleteBitcoin = useMutation(api.bitcoin.deleteBitcoinConfig);
 
     const handleInputChange = (field: keyof Partial<Doc<"bitcoin">>, value: any) => {
         setFormData({ ...formData, [field]: value });
@@ -52,19 +50,52 @@ export default function BitcoinConfigPage() {
         return Object.keys(newErrors).length === 0;
     };
 
+    const handleNewRecord = () => {
+        setEditingId(null);
+        setIsEditing(true);
+        setFormData(DEFAULT_FORM_DATA);
+        setErrors({});
+    };
+
+    const handleEdit = (config: Doc<"bitcoin">) => {
+        setEditingId(config._id);
+        setIsEditing(true);
+        setFormData(config);
+        setErrors({});
+    };
+
+    const handleDelete = (id: string) => {
+        Alert.alert(
+            "Confirmar exclusão",
+            "Tem certeza que deseja excluir este registro?",
+            [
+                {
+                    text: "Cancelar",
+                    style: "cancel"
+                },
+                {
+                    text: "Excluir",
+                    style: "destructive",
+                    onPress: async () => {
+                        try {
+                            await deleteBitcoin({ _id: id });
+                            console.log("Bitcoin configuration deleted successfully!");
+                        } catch (error) {
+                            console.error("Failed to delete Bitcoin configuration:", error);
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
     const toggleEditing = async () => {
         if (isEditing) {
             if (!validateForm()) {
                 return;
             }
             try {
-                if (bitcoinConfig) {
-                    await updateBitcoin({
-                        _id: bitcoinConfig._id,
-                        _creationTime: bitcoinConfig._creationTime,
-                        ...formData
-                    } as Doc<"bitcoin">);
-                } else {
+                if (editingId === null) {
                     if (formData.network && formData.address !== undefined && formData.isActive !== undefined) {
                         await createBitcoin({
                             network: formData.network,
@@ -72,16 +103,26 @@ export default function BitcoinConfigPage() {
                             isActive: formData.isActive,
                         });
                     }
+                } else {
+                    const config = bitcoinConfigs?.find(c => c._id === editingId);
+                    if (config) {
+                        await updateBitcoin({
+                            _id: config._id,
+                            _creationTime: config._creationTime,
+                            ...formData
+                        } as Doc<"bitcoin">);
+                    }
                 }
                 console.log("Bitcoin configuration saved successfully!");
             } catch (error) {
                 console.error("Failed to save Bitcoin configuration:", error);
             }
         }
-        setIsEditing(!isEditing);
+        setIsEditing(false);
+        setEditingId(null);
     };
 
-    if (bitcoinConfig === undefined) {
+    if (bitcoinConfigs === undefined) {
         return (
             <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color={COLORS.secondary} />
@@ -89,74 +130,142 @@ export default function BitcoinConfigPage() {
         );
     }
 
+    const renderConfigForm = () => (
+        <View style={styles.configContainer}>
+            {/* Network Type Field */}
+            <Text style={[styles.label, errors.network && styles.errorLabel]}>Rede*</Text>
+            <View style={styles.categoryContainer}>
+                {NETWORK_TYPES.map(type => (
+                    <TouchableOpacity
+                        key={type.id}
+                        style={[
+                            styles.categoryButton,
+                            formData.network === type.id && styles.selectedCategory,
+                            errors.network && styles.errorBorder
+                        ]}
+                        onPress={() => handleInputChange('network', type.id)}
+                        disabled={!isEditing}
+                    >
+                        <Text style={[
+                            styles.categoryText,
+                            formData.network === type.id && styles.selectedCategoryText
+                        ]}>
+                            {type.name}
+                        </Text>
+                    </TouchableOpacity>
+                ))}
+            </View>
+
+            {/* Address Field */}
+            <Text style={[styles.label, errors.address && styles.errorLabel]}>Endereço*</Text>
+            <View style={[styles.fieldContainer, errors.address && styles.errorBorder]}>
+                {isEditing ? (
+                    <TextInput
+                        style={styles.valueInput}
+                        value={formData.address}
+                        onChangeText={(text) => handleInputChange('address', text)}
+                        placeholder="Digite o endereço Bitcoin"
+                        placeholderTextColor={COLORS.lightGray}
+                    />
+                ) : (
+                    <Text style={styles.value}>{formData.address}</Text>
+                )}
+            </View>
+
+            {/* Is Active Toggle */}
+            <Text style={styles.label}>Ativo:</Text>
+            <View style={styles.fieldContainer}>
+                {isEditing ? (
+                    <Switch
+                        onValueChange={(value) => handleInputChange('isActive', value)}
+                        value={formData.isActive}
+                        thumbColor={formData.isActive ? COLORS.secondary : '#fff'}
+                        ios_backgroundColor={COLORS.lightGray}
+                        trackColor={{ false: COLORS.lightGray, true: COLORS.secondary }}
+                    />
+                ) : (
+                    <Text style={styles.value}>{formData.isActive ? 'Sim' : 'Não'}</Text>
+                )}
+            </View>
+
+            {isEditing && (
+                <View style={styles.editActions}>
+                    <TouchableOpacity
+                        style={[styles.actionButton, styles.saveButton]}
+                        onPress={toggleEditing}
+                    >
+                        <Feather name="check" size={20} color={COLORS.white} />
+                        <Text style={styles.actionButtonText}>Salvar</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.actionButton, styles.cancelButton]}
+                        onPress={() => {
+                            setIsEditing(false);
+                            setEditingId(null);
+                            setFormData(DEFAULT_FORM_DATA);
+                        }}
+                    >
+                        <Feather name="x" size={20} color={COLORS.white} />
+                        <Text style={styles.actionButtonText}>Cancelar</Text>
+                    </TouchableOpacity>
+                </View>
+            )}
+        </View>
+    );
+
     return (
         <View style={styles.container}>
             <TransparentHeader
                 title="Configuração Bitcoin"
                 backButton
                 onBackPress={() => router.back()}
-                icon={<TouchableOpacity onPress={toggleEditing}>
-                    <Feather name={isEditing ? "check" : "edit-2"} size={24} color={COLORS.secondary} />
-                </TouchableOpacity>}
             />
             <ScrollView style={styles.content}>
-                <View style={styles.configContainer}>
-                    {/* Network Type Field */}
-                    <Text style={[styles.label, errors.network && styles.errorLabel]}>Rede*</Text>
-                    <View style={styles.categoryContainer}>
-                        {NETWORK_TYPES.map(type => (
-                            <TouchableOpacity
-                                key={type.id}
-                                style={[
-                                    styles.categoryButton,
-                                    formData.network === type.id && styles.selectedCategory,
-                                    errors.network && styles.errorBorder
-                                ]}
-                                onPress={() => handleInputChange('network', type.id)}
-                                disabled={!isEditing}
-                            >
-                                <Text style={[
-                                    styles.categoryText,
-                                    formData.network === type.id && styles.selectedCategoryText
-                                ]}>
-                                    {type.name}
-                                </Text>
-                            </TouchableOpacity>
-                        ))}
-                    </View>
-
-                    {/* Address Field */}
-                    <Text style={[styles.label, errors.address && styles.errorLabel]}>Endereço*</Text>
-                    <View style={[styles.fieldContainer, errors.address && styles.errorBorder]}>
-                        {isEditing ? (
-                            <TextInput
-                                style={styles.valueInput}
-                                value={formData.address}
-                                onChangeText={(text) => handleInputChange('address', text)}
-                                placeholder="Digite o endereço Bitcoin"
-                                placeholderTextColor={COLORS.lightGray}
-                            />
+                {bitcoinConfigs.map((config) => (
+                    <View key={config._id} style={styles.configWrapper}>
+                        {editingId === config._id ? (
+                            renderConfigForm()
                         ) : (
-                            <Text style={styles.value}>{formData.address}</Text>
+                            <View style={styles.configContainer}>
+                                <View style={styles.configHeader}>
+                                    <Text style={styles.configTitle}>
+                                        {NETWORK_TYPES.find(t => t.id === config.network)?.name}
+                                    </Text>
+                                    <View style={styles.headerActions}>
+                                        <TouchableOpacity
+                                            onPress={() => handleEdit(config)}
+                                            style={styles.headerButton}
+                                        >
+                                            <Feather name="edit-2" size={20} color={COLORS.secondary} />
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            onPress={() => handleDelete(config._id)}
+                                            style={styles.headerButton}
+                                        >
+                                            <Feather name="trash-2" size={20} color={COLORS.error} />
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
+                                <Text style={styles.label}>Endereço:</Text>
+                                <Text style={styles.value}>{config.address}</Text>
+                                <Text style={styles.label}>Ativo:</Text>
+                                <Text style={styles.value}>{config.isActive ? 'Sim' : 'Não'}</Text>
+                            </View>
                         )}
                     </View>
+                ))}
 
-                    {/* Is Active Toggle */}
-                    <Text style={styles.label}>Ativo:</Text>
-                    <View style={styles.fieldContainer}>
-                        {isEditing ? (
-                            <Switch
-                                onValueChange={(value) => handleInputChange('isActive', value)}
-                                value={formData.isActive}
-                                thumbColor={formData.isActive ? COLORS.secondary : '#fff'}
-                                ios_backgroundColor={COLORS.lightGray}
-                                trackColor={{ false: COLORS.lightGray, true: COLORS.secondary }}
-                            />
-                        ) : (
-                            <Text style={styles.value}>{formData.isActive ? 'Sim' : 'Não'}</Text>
-                        )}
-                    </View>
-                </View>
+                {isEditing && editingId === null && renderConfigForm()}
+
+                {!isEditing && (
+                    <TouchableOpacity
+                        style={styles.newRecordButton}
+                        onPress={handleNewRecord}
+                    >
+                        <Feather name="plus" size={20} color={COLORS.white} />
+                        <Text style={styles.newRecordButtonText}>Novo Registro</Text>
+                    </TouchableOpacity>
+                )}
             </ScrollView>
         </View>
     );
@@ -177,10 +286,24 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         backgroundColor: COLORS.background,
     },
+    configWrapper: {
+        marginBottom: 16,
+    },
     configContainer: {
         backgroundColor: COLORS.white,
         borderRadius: 12,
         padding: 16,
+    },
+    configHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 12,
+    },
+    configTitle: {
+        fontSize: 18,
+        fontWeight: '600',
+        color: COLORS.secondary,
     },
     label: {
         fontSize: 16,
@@ -239,5 +362,51 @@ const styles = StyleSheet.create({
     selectedCategory: {
         backgroundColor: COLORS.secondary,
         borderColor: COLORS.secondary,
+    },
+    newRecordButton: {
+        backgroundColor: COLORS.secondary,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 12,
+        borderRadius: 8,
+        marginTop: 16,
+        gap: 8,
+    },
+    newRecordButtonText: {
+        color: COLORS.white,
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    editActions: {
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+        gap: 12,
+        marginTop: 16,
+    },
+    actionButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 8,
+        borderRadius: 6,
+        gap: 4,
+    },
+    saveButton: {
+        backgroundColor: COLORS.secondary,
+    },
+    cancelButton: {
+        backgroundColor: COLORS.gray,
+    },
+    actionButtonText: {
+        color: COLORS.white,
+        fontSize: 14,
+        fontWeight: '600',
+    },
+    headerActions: {
+        flexDirection: 'row',
+        gap: 12,
+    },
+    headerButton: {
+        padding: 4,
     },
 }); 
