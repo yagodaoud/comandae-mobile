@@ -3,8 +3,20 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import CategoryCard from './CategoryCard';
 import { COLORS } from '@/constants/theme';
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
 
 const CategoriesSection: React.FC = () => {
+    const dishCount = useQuery(api.dishes.getDishCount);
+    const lowStockCount = useQuery(api.dishes.getLowStockDishes, { threshold: 5 });
+    const openSlipsCount = useQuery(api.slips.getOpenSlipsCount);
+    const todayOrdersCount = useQuery(api.slips.getTodayOrdersCount);
+
+    const formatCount = (count: number | undefined, singular: string, plural: string) => {
+        if (count === undefined) return 'Carregando...';
+        return `${count} ${count === 1 ? singular : plural}`;
+    };
+
     return (
         <View style={styles.categoriesSection}>
             <View style={styles.categoriesHeader}>
@@ -17,29 +29,28 @@ const CategoriesSection: React.FC = () => {
             <View style={styles.categoryGrid}>
                 <CategoryCard
                     icon={<Feather name="book" size={24} color={COLORS.primary} />}
-                    count="5 Pratos no Menu"
+                    count={formatCount(dishCount, 'Prato no Menu', 'Pratos no Menu')}
                     title="Cardápio"
                     screenName="dishes"
                 />
                 <CategoryCard
                     icon={<Feather name="alert-triangle" size={24} color={COLORS.primary} />}
-                    count="5 Itens com Estoque Baixo"
+                    count={formatCount(lowStockCount, 'Item com Estoque Baixo', 'Itens com Estoque Baixo')}
                     title="Estoque"
                     screenName="stock"
                 />
-
             </View>
 
             <View style={styles.categoryGrid}>
                 <CategoryCard
                     icon={<Feather name="check-square" size={24} color={COLORS.primary} />}
-                    count="9 Comandas Abertas"
+                    count={formatCount(openSlipsCount, 'Comanda Aberta', 'Comandas Abertas')}
                     title="Comandas"
                     screenName="slips"
                 />
                 <CategoryCard
                     icon={<Feather name="shopping-bag" size={24} color={COLORS.primary} />}
-                    count="2 Novos pedidos"
+                    count={formatCount(todayOrdersCount, 'Comanda fechada', 'Comandas fechadas')}
                     title="Pedidos"
                     screenName="payment"
                     navigationParams={{ filter: 'open' }}

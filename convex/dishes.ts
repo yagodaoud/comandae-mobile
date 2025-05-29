@@ -86,3 +86,23 @@ export const listCategories = query({
         return await ctx.db.query("dish_categories").collect();
     },
 });
+
+export const getDishCount = query({
+    handler: async (ctx) => {
+        const count = await ctx.db.query("dishes").collect();
+        return count.length;
+    },
+});
+
+export const getLowStockDishes = query({
+    args: {
+        threshold: v.number(),
+    },
+    handler: async (ctx, args) => {
+        const products = await ctx.db
+            .query("products")
+            .filter(q => q.lt(q.field("stock"), args.threshold))
+            .collect();
+        return products.length;
+    },
+});

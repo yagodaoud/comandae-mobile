@@ -243,4 +243,36 @@ function formatTimeDiff(diff: number): string {
     const hours = Math.floor(minutes / 60);
     const remainingMinutes = minutes % 60;
     return `${hours}h ${remainingMinutes}min`;
-} 
+}
+
+export const getOpenSlipsCount = query({
+    handler: async (ctx) => {
+        const slips = await ctx.db
+            .query("slips")
+            .filter(q => q.eq(q.field("isOpen"), true))
+            .collect();
+        return slips.length;
+    },
+});
+
+export const getTodayOrdersCount = query({
+    handler: async (ctx) => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        const slips = await ctx.db
+            .query("slips")
+            .filter(q =>
+                q.and(
+                    q.gte(q.field("paymentTime"), today.getTime()),
+                    q.lt(q.field("paymentTime"), tomorrow.getTime())
+                )
+            )
+            .collect();
+
+        return slips.length;
+    },
+}); 
