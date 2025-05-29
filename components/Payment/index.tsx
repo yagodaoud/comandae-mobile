@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, Platform, BackHandler } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -18,6 +18,7 @@ import { FilterChips } from '@/components/FilterChips';
 import { EmptyState } from '@/components/EmptyState';
 import { ActionButtons } from '@/components/ActionButtons';
 import ViewSlipModal from './ViewSlipModal';
+import { LoadingOverlay } from '@/components/ui/LoadingOverlay';
 
 const paymentMethods = [
     { id: 'cash', name: 'Dinheiro', icon: 'dollar-sign', iconType: 'feather' },
@@ -60,6 +61,8 @@ export default function Payment() {
     const [selectedSlip, setSelectedSlip] = useState<{ id: Id<"slips">; table: string; total: number; items: any[] } | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [activeFilter, setActiveFilter] = useState<FilterOption>('open');
+    const [isLoading, setIsLoading] = useState(true);
+    const [isInitialLoad, setIsInitialLoad] = useState(true);
 
     const [isViewModalVisible, setIsViewModalVisible] = useState(false);
     const [viewingSlip, setViewingSlip] = useState<Slip | null>(null);
@@ -67,7 +70,7 @@ export default function Payment() {
     const slips = useQuery(api.slips.getSlipsForPayment, {
         isOpen: activeFilter === 'all' ? undefined : activeFilter === 'open',
         searchQuery: searchQuery || undefined,
-    }) ?? [];
+    });
 
     const products = useQuery(api.products.getProducts) ?? [];
 
@@ -125,6 +128,25 @@ export default function Payment() {
             }
         }
     }, [params.slipId, slips]);
+
+    // Add effect to handle loading state
+    useEffect(() => {
+        if (isInitialLoad) {
+            setIsLoading(true);
+            const timer = setTimeout(() => {
+                setIsLoading(false);
+                setIsInitialLoad(false);
+            }, 300);
+            return () => clearTimeout(timer);
+        } else {
+            // For filter changes, show loading immediately
+            setIsLoading(true);
+            const timer = setTimeout(() => {
+                setIsLoading(false);
+            }, 300);
+            return () => clearTimeout(timer);
+        }
+    }, [slips, activeFilter, searchQuery, isInitialLoad]);
 
     const handleBackPress = () => {
         if (selectedSlip) {
@@ -254,58 +276,69 @@ export default function Payment() {
                     { paddingBottom: 60 + (Platform.OS === 'ios' ? insets.bottom : 0) }
                 ]}
             >
-                {/* Sort slips based on active filter (client-side) */}
-                {slips
-                    .slice() // Create a shallow copy to avoid mutating the original array
-                    .sort((a, b) => {
-                        // Sorting for Closed slips (by paymentTime descending)
-                        if (activeFilter === 'closed') {
-                            const timeA = a.paymentTime ?? a._creationTime; // Use _creationTime as fallback
-                            const timeB = b.paymentTime ?? b._creationTime;
-                            return timeB - timeA; // Sort by time descending
-                        }
-
-                        // Sorting for Open and All slips (by time descending)
-                        const timeA = a.isOpen ? a.lastUpdateTime : (a.paymentTime ?? a._creationTime);
-                        const timeB = b.isOpen ? b.lastUpdateTime : (b.paymentTime ?? b._creationTime);
-
-                        // For 'all' filter, prioritize open slips over closed slips first
-                        if (activeFilter === 'all') {
-                            if (a.isOpen && !b.isOpen) return -1; // a (open) comes before b (closed)
-                            if (!a.isOpen && b.isOpen) return 1;  // b (open) comes before a (closed)
-                        }
-
-                        return timeB - timeA; // Sort by time descending
-                    })
-                    .map(slip => (
-                        <SlipCard
-                            key={slip._id}
-                            table={slip.table}
-                            items={slip.items.length}
-                            total={slip.total.toFixed(2)}
-                            time={slip.time}
-                            status={slip.isOpen ? 'open' : 'closed'}
-                            onPress={() => {
-                                if (slip.isOpen) {
-                                    setSelectedSlip({
-                                        id: slip._id,
-                                        table: slip.table,
-                                        total: slip.total,
-                                        items: slip.items,
-                                    });
-                                } else {
-                                    setViewingSlip(slip);
-                                    setIsViewModalVisible(true);
-                                }
-                            }}
+                {slips === undefined ? (
+                    <View style={styles.loadingContainer}>
+                        <LoadingOverlay
+                            size="small"
+                            backgroundColor="transparent"
+                            overlayOpacity={0}
                         />
-                    ))}
+                    </View>
+                ) : (
+                    <>
+                        {slips.length > 0 ? (
+                            slips
+                                .slice()
+                                .sort((a, b) => {
+                                    // Sorting for Closed slips (by paymentTime descending)
+                                    if (activeFilter === 'closed') {
+                                        const timeA = a.paymentTime ?? a._creationTime; // Use _creationTime as fallback
+                                        const timeB = b.paymentTime ?? b._creationTime;
+                                        return timeB - timeA; // Sort by time descending
+                                    }
 
-                {slips.length === 0 && (
-                    <EmptyState
-                        icon={<Feather name="clipboard" size={48} color="#ccc" />}
-                        message="Nenhuma comanda encontrada"
-                    />
+                                    // Sorting for Open and All slips (by time descending)
+                                    const timeA = a.isOpen ? a.lastUpdateTime : (a.paymentTime ?? a._creationTime);
+                                    const timeB = b.isOpen ? b.lastUpdateTime : (b.paymentTime ?? b._creationTime);
+
+                                    // For 'all' filter, prioritize open slips over closed slips first
+                                    if (activeFilter === 'all') {
+                                        if (a.isOpen && !b.isOpen) return -1; // a (open) comes before b (closed)
+                                        if (!a.isOpen && b.isOpen) return 1;  // b (open) comes before a (closed)
+                                    }
+
+                                    return timeB - timeA; // Sort by time descending
+                                })
+                                .map(slip => (
+                                    <SlipCard
+                                        key={slip._id}
+                                        table={slip.table}
+                                        items={slip.items.length}
+                                        total={slip.total.toFixed(2)}
+                                        time={slip.time}
+                                        status={slip.isOpen ? 'open' : 'closed'}
+                                        onPress={() => {
+                                            if (slip.isOpen) {
+                                                setSelectedSlip({
+                                                    id: slip._id,
+                                                    table: slip.table,
+                                                    total: slip.total,
+                                                    items: slip.items,
+                                                });
+                                            } else {
+                                                setViewingSlip(slip);
+                                                setIsViewModalVisible(true);
+                                            }
+                                        }}
+                                    />
+                                ))
+                        ) : (
+                            <EmptyState
+                                icon={<Feather name="clipboard" size={48} color="#ccc" />}
+                                message="Nenhuma comanda encontrada"
+                            />
+                        )}
+                    </>
                 )}
             </ScrollView>
 
@@ -346,5 +379,11 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: '#f0f0f0',
         marginBottom: 8,
+    },
+    loadingContainer: {
+        flex: 1,
+        minHeight: 200,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
 });
