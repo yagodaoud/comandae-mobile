@@ -7,7 +7,7 @@ import { COLORS } from '@/constants/theme';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Id, Doc } from '@/convex/_generated/dataModel';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import TransparentHeader from '@/components/TransparentHeader';
 import { OrderSummary } from './OrderSummary';
 import { PaymentMethodSelector } from './PaymentMethodSelector';
@@ -52,6 +52,7 @@ type Slip = Doc<"slips">;
 
 export default function Payment() {
     const router = useRouter();
+    const params = useLocalSearchParams();
     const insets = useSafeAreaInsets();
     const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('credit');
     const [tipPercentage, setTipPercentage] = useState(0);
@@ -108,6 +109,22 @@ export default function Payment() {
 
         return () => backHandler.remove();
     }, [selectedSlip, viewingSlip]);
+
+    // Auto-select slip if slipId is provided in params
+    useEffect(() => {
+        if (params.slipId && !selectedSlip) {
+            setActiveFilter('open');
+            const slip = slips.find(s => s._id === params.slipId);
+            if (slip) {
+                setSelectedSlip({
+                    id: slip._id,
+                    table: slip.table,
+                    total: slip.total,
+                    items: slip.items
+                });
+            }
+        }
+    }, [params.slipId, slips]);
 
     const handleBackPress = () => {
         if (selectedSlip) {

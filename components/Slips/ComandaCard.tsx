@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import ActionMenu from './ActionMenu';
+import { Id } from '@/convex/_generated/dataModel';
 
 interface ComandaCardProps {
+    id: Id<"slips">;
     table: string;
     items: number;
     total: string;
@@ -13,6 +15,7 @@ interface ComandaCardProps {
 }
 
 export const ComandaCard: React.FC<ComandaCardProps> = ({
+    id,
     table,
     items,
     total,
@@ -86,6 +89,7 @@ export const ComandaCard: React.FC<ComandaCardProps> = ({
                 visible={showActions}
                 position={actionPosition}
                 onClose={() => setShowActions(false)}
+                slipId={id}
             />
         </>
     );

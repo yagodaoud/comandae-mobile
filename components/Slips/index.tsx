@@ -108,6 +108,7 @@ export default function Slips() {
                         slip.isOpen && (
                             <ComandaCard
                                 key={slip._id}
+                                id={slip._id}
                                 table={slip.table}
                                 items={slip.items.length}
                                 total={slip.total.toFixed(2).replace('.', ',')}

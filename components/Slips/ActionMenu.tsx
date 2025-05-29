@@ -8,9 +8,10 @@ interface ActionMenuProps {
     visible: boolean;
     position: { x: number; y: number };
     onClose: () => void;
+    slipId: string;
 }
 
-export default function ActionMenu({ visible, position, onClose }: ActionMenuProps) {
+export default function ActionMenu({ visible, position, onClose, slipId }: ActionMenuProps) {
     const router = useRouter();
     const screenWidth = Dimensions.get('window').width;
     const menuWidth = 200;
@@ -35,7 +36,10 @@ export default function ActionMenu({ visible, position, onClose }: ActionMenuPro
 
     const handlePayment = () => {
         onClose();
-        router.push('/payment');
+        router.push({
+            pathname: '/payment',
+            params: { slipId }
+        });
     };
 
     // Calculate if the card is on the left or right side
