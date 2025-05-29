@@ -273,8 +273,17 @@ export default function MenuGenerationScreen() {
         setState(prev => ({
             ...prev,
             selectedDishIds: new Set(),
-            isSelectionModalVisible: true
+            isProcessing: true,
+            isSelectionModalVisible: false
         }));
+
+        setTimeout(() => {
+            setState(prev => ({
+                ...prev,
+                isProcessing: false,
+                isSelectionModalVisible: true
+            }));
+        }, 0);
     }, []);
 
     const handleBackPress = () => {
@@ -294,6 +303,16 @@ export default function MenuGenerationScreen() {
                     onBackPress={handleBackPress}
                     icon={null}
                 />
+
+                {state.isProcessing && (
+                    <View style={styles.loadingContainer}>
+                        <LoadingOverlay
+                            size="small"
+                            backgroundColor={COLORS.white}
+                            overlayOpacity={0.7}
+                        />
+                    </View>
+                )}
 
                 <ScrollView
                     ref={scrollViewRef}
@@ -468,5 +487,17 @@ const styles = StyleSheet.create({
     editorSectionsContainer: {
         position: 'relative',
         gap: 16,
+    },
+    loadingContainer: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: 'rgba(255, 255, 255, 0.7)',
+        zIndex: 9999,
+        elevation: 9999,
     },
 });
