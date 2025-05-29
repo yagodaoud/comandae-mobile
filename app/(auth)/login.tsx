@@ -5,27 +5,30 @@ import { Ionicons } from '@expo/vector-icons'
 import { COLORS } from '@/constants/theme'
 import { useSSO } from '@clerk/clerk-expo'
 import { useRouter } from 'expo-router'
+import * as AuthSession from 'expo-auth-session';
 
 export default function Login() {
     const { startSSOFlow } = useSSO();
     const router = useRouter();
 
-
     const handleGoogleSignIn = async () => {
         try {
+            const redirectUrl = AuthSession.makeRedirectUri({
+                path: 'expo-auth-session'
+            });
+
             const { createdSessionId, setActive } = await startSSOFlow({
                 strategy: "oauth_google",
+                redirectUrl
             });
 
             if (setActive && createdSessionId) {
-                setActive({ session: createdSessionId })
-                router.replace("/(tabs)");
+                await setActive({ session: createdSessionId });
             }
         } catch (error) {
             console.error('Error signing in with Google:', error);
         };
     }
-
 
     return (
         <View style={styles.container}>
