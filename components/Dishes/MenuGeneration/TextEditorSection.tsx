@@ -10,6 +10,7 @@ interface TextEditorSectionProps {
     placeholder?: string;
     emptyIcon?: string;
     emptyLabel?: string;
+    isLoading?: boolean;
 }
 
 const TextEditorSection = memo(({
@@ -18,7 +19,8 @@ const TextEditorSection = memo(({
     onTextChange,
     placeholder,
     emptyIcon = "file-text",
-    emptyLabel = "Nenhum texto definido"
+    emptyLabel = "Nenhum texto definido",
+    isLoading = false
 }: TextEditorSectionProps) => {
     const [localText, setLocalText] = useState(initialText);
     const [isEditing, setIsEditing] = useState(false);
@@ -54,6 +56,7 @@ const TextEditorSection = memo(({
                     />
                 </TouchableOpacity>
             </View>
+
             {isEditing ? (
                 <TextInput
                     style={styles.input}
@@ -66,7 +69,7 @@ const TextEditorSection = memo(({
                 />
             ) : hasContent ? (
                 <Text style={styles.displayText}>{localText}</Text>
-            ) : (
+            ) : !isLoading && (
                 <View style={styles.emptyState}>
                     <Feather name={emptyIcon} size={24} color={COLORS.gray[400]} />
                     <Text style={styles.emptyLabel}>{emptyLabel}</Text>

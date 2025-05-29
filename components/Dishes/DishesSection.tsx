@@ -1,8 +1,10 @@
 import React, { useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { COLORS } from '@/constants/theme';
 import { DishCard } from './DishCard';
+import { LoadingOverlay } from '@/components/ui/LoadingOverlay';
+
 interface DishesSectionProps {
     dishes: any[];
     isLoading: boolean;
@@ -58,7 +60,11 @@ const DishesSection = ({
         <>
             {loadingMore && (
                 <View style={styles.loadingMoreContainer}>
-                    <ActivityIndicator size="small" color={COLORS.primary} />
+                    <LoadingOverlay
+                        size="small"
+                        backgroundColor={COLORS.white}
+                        overlayOpacity={0.7}
+                    />
                     <Text style={styles.loadingMoreText}>Carregando mais itens...</Text>
                 </View>
             )}
@@ -72,8 +78,11 @@ const DishesSection = ({
     if (isLoading) {
         return (
             <View style={[styles.container, styles.loadingContainer]}>
-                <Text>Carregando cardápio...</Text>
-                <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 16 }} />
+                <LoadingOverlay
+                    size="small"
+                    backgroundColor={COLORS.white}
+                    overlayOpacity={0.7}
+                />
             </View>
         );
     }
@@ -93,7 +102,11 @@ const DishesSection = ({
 
             {isSearching ? (
                 <View style={styles.searchingContainer}>
-                    <ActivityIndicator size="large" color={COLORS.primary} />
+                    <LoadingOverlay
+                        size="small"
+                        backgroundColor={COLORS.white}
+                        overlayOpacity={0.7}
+                    />
                     <Text style={styles.searchingText}>Buscando itens...</Text>
                 </View>
             ) : (

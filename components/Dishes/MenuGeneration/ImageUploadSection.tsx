@@ -6,7 +6,6 @@ import { COLORS } from '@/constants/theme';
 const ImageUploadSection = ({ imageUri, onImagePress, isProcessing }) => {
     return (
         <View>
-            <Text style={styles.areaTitle}>Imagem do Cardápio</Text>
             <TouchableOpacity
                 style={styles.imageUploadArea}
                 onPress={onImagePress}

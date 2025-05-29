@@ -16,6 +16,7 @@ import AddCategoryModal from './AddCategoryModal';
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id, Doc } from "@/convex/_generated/dataModel";
+import { LoadingOverlay } from '@/components/ui/LoadingOverlay';
 
 type Product = Doc<"products">;
 type Category = Doc<"product_categories">;
@@ -31,29 +32,29 @@ export default function Stock() {
     const [editingCategory, setEditingCategory] = useState<Category | undefined>();
     const [editingProduct, setEditingProduct] = useState<Product | undefined>();
 
-    const products = useQuery(api.products.getProducts) ?? [];
-    const categories = useQuery(api.products.getProductCategories) ?? [];
+    const products = useQuery(api.products.getProducts);
+    const categories = useQuery(api.products.getProductCategories);
 
     const bottomPadding = 60 + (Platform.OS === 'ios' ? insets.bottom : 0);
 
     // Sort categories by display order
-    const sortedCategories = [...categories].sort((a, b) =>
+    const sortedCategories = categories ? [...categories].sort((a, b) =>
         (a.displaOrder ?? 0) - (b.displaOrder ?? 0)
-    );
+    ) : [];
 
-    const filteredProducts = products.filter((product: Product) => {
+    const filteredProducts = products?.filter((product: Product) => {
         const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase());
         if (selectedCategory === 'all') return matchesSearch;
-        const category = categories.find((c: Category) => c._id === product.categoryId);
+        const category = categories?.find((c: Category) => c._id === product.categoryId);
         return matchesSearch && category?.name === selectedCategory;
-    });
+    }) ?? [];
 
     const stats = {
-        totalProducts: products.length,
-        totalCategories: categories.length,
-        lowStock: products.filter((p: Product) => p.stock < 10).length,
-        totalValue: products.reduce((sum: number, product: Product) =>
-            sum + (product.price * product.stock), 0).toFixed(2).replace('.', ','),
+        totalProducts: products?.length ?? 0,
+        totalCategories: categories?.length ?? 0,
+        lowStock: products?.filter((p: Product) => p.stock < 10).length ?? 0,
+        totalValue: (products?.reduce((sum: number, product: Product) =>
+            sum + (product.price * product.stock), 0) ?? 0).toFixed(2).replace('.', ','),
     };
 
     const handleAddItem = () => {
@@ -82,13 +83,23 @@ export default function Stock() {
 
     const renderContent = () => {
         if (activeView === 'products') {
+            if (products === undefined) {
+                return (
+                    <LoadingOverlay
+                        size="small"
+                        backgroundColor={COLORS.white}
+                        overlayOpacity={0.7}
+                    />
+                );
+            }
+
             return filteredProducts.length > 0 ? (
                 <View style={styles.productsGrid}>
                     {filteredProducts.map((product: Product) => (
                         <ProductCard
                             key={product._id}
                             name={product.name}
-                            category={categories.find((c: Category) => c._id === product.categoryId)?.name ?? ''}
+                            category={categories?.find((c: Category) => c._id === product.categoryId)?.name ?? ''}
                             price={product.price.toString()}
                             stock={product.stock}
                             image={product.image}
@@ -104,6 +115,16 @@ export default function Stock() {
             );
         }
 
+        if (categories === undefined) {
+            return (
+                <LoadingOverlay
+                    size="small"
+                    backgroundColor={COLORS.white}
+                    overlayOpacity={0.7}
+                />
+            );
+        }
+
         const filteredCategories = sortedCategories.filter((category: Category) =>
             category.name.toLowerCase().includes(searchQuery.toLowerCase())
         );
@@ -114,7 +135,7 @@ export default function Stock() {
                     <CategoryCard
                         key={category._id}
                         name={category.name}
-                        productTotal={products.filter((p: Product) => p.categoryId === category._id).length}
+                        productTotal={products?.filter((p: Product) => p.categoryId === category._id).length ?? 0}
                         image="https://placeholder.com/category"
                         onPress={() => handleEditCategory(category)}
                     />

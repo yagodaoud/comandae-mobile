@@ -13,6 +13,7 @@ import { useQuery, useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import AddSlipModal from './AddSlipModal';
 import { Id } from '@/convex/_generated/dataModel';
+import { LoadingOverlay } from '@/components/ui/LoadingOverlay';
 
 export default function Slips() {
     const insets = useSafeAreaInsets();
@@ -25,12 +26,12 @@ export default function Slips() {
     const slips = useQuery(api.slips.getSlips, {
         isOpen: true,
         searchQuery: searchQuery || undefined,
-    }) ?? [];
+    });
 
     const updateSlipStatus = useMutation(api.slips.updateSlipStatus);
 
     useEffect(() => {
-        if (!slips.length) return;
+        if (!slips?.length) return;
 
         const updateStatuses = async () => {
             for (const slip of slips) {
@@ -61,12 +62,12 @@ export default function Slips() {
     }, [slips, updateSlipStatus]);
 
     const stats = {
-        total: slips.length,
-        totalValue: slips.reduce((sum, slip) => sum + slip.total, 0).toFixed(2).replace('.', ','),
-        long: slips.filter(s => s.status === 'long' && s.isOpen).length,
+        total: slips?.length ?? 0,
+        totalValue: (slips?.reduce((sum, slip) => sum + slip.total, 0) ?? 0).toFixed(2).replace('.', ','),
+        long: slips?.filter(s => s.status === 'long' && s.isOpen).length ?? 0,
     };
 
-    const handleSlipPress = (slip: typeof slips[0]) => {
+    const handleSlipPress = (slip: NonNullable<typeof slips>[0]) => {
         setEditingSlip({
             id: slip._id,
             table: slip.table,
@@ -104,7 +105,7 @@ export default function Slips() {
                 showsVerticalScrollIndicator={false}
             >
                 <View style={styles.comandasGrid}>
-                    {slips.map(slip => (
+                    {slips?.map(slip => (
                         slip.isOpen && (
                             <ComandaCard
                                 key={slip._id}
@@ -120,18 +121,28 @@ export default function Slips() {
                     ))}
                 </View>
 
-                {slips.filter(slip => slip.isOpen).length === 0 && searchQuery === '' && (
-                    <EmptyState
-                        icon={<Feather name="clipboard" size={48} color="#ccc" />}
-                        message="Nenhuma comanda aberta encontrada"
+                {slips === undefined ? (
+                    <LoadingOverlay
+                        size="small"
+                        backgroundColor={COLORS.white}
+                        overlayOpacity={0.7}
                     />
-                )}
+                ) : (
+                    <>
+                        {slips.filter(slip => slip.isOpen).length === 0 && searchQuery === '' && (
+                            <EmptyState
+                                icon={<Feather name="clipboard" size={48} color="#ccc" />}
+                                message="Nenhuma comanda aberta encontrada"
+                            />
+                        )}
 
-                {slips.filter(slip => slip.isOpen).length === 0 && searchQuery !== '' && (
-                    <EmptyState
-                        icon={<Feather name="search" size={48} color="#ccc" />}
-                        message="Nenhuma comanda encontrada para a sua busca"
-                    />
+                        {slips.filter(slip => slip.isOpen).length === 0 && searchQuery !== '' && (
+                            <EmptyState
+                                icon={<Feather name="search" size={48} color="#ccc" />}
+                                message="Nenhuma comanda encontrada para a sua busca"
+                            />
+                        )}
+                    </>
                 )}
             </ScrollView>
 

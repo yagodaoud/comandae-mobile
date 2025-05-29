@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import TransparentHeader from '@/components/TransparentHeader';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
+import { LoadingOverlay } from '@/components/ui/LoadingOverlay';
 
 import ImageUploadSection from './ImageUploadSection';
 import ProcessButton from './ProcessButton';
@@ -341,25 +342,37 @@ export default function MenuGenerationScreen() {
 
                     <View style={styles.editorContainer}>
                         <Text style={styles.sectionTitle}>Personalização</Text>
-                        <TextEditorSection
-                            key="header"
-                            title="Cabeçalho"
-                            initialText={state.headerText}
-                            onTextChange={handleHeaderChange}
-                            placeholder="Digite o cabeçalho do cardápio..."
-                            emptyIcon="type"
-                            emptyLabel="Nenhum cabeçalho definido"
-                        />
+                        <View style={styles.editorSectionsContainer}>
+                            <TextEditorSection
+                                key="header"
+                                title="Cabeçalho"
+                                initialText={state.headerText}
+                                onTextChange={handleHeaderChange}
+                                placeholder="Digite o cabeçalho do cardápio..."
+                                emptyIcon="type"
+                                emptyLabel="Nenhum cabeçalho definido"
+                                isLoading={activeHeader === undefined}
+                            />
 
-                        <TextEditorSection
-                            key="footer"
-                            title="Rodapé"
-                            initialText={state.footerText}
-                            onTextChange={handleFooterChange}
-                            placeholder="Digite o rodapé do cardápio..."
-                            emptyIcon="file-text"
-                            emptyLabel="Nenhum rodapé definido"
-                        />
+                            <TextEditorSection
+                                key="footer"
+                                title="Rodapé"
+                                initialText={state.footerText}
+                                onTextChange={handleFooterChange}
+                                placeholder="Digite o rodapé do cardápio..."
+                                emptyIcon="file-text"
+                                emptyLabel="Nenhum rodapé definido"
+                                isLoading={activeFooter === undefined}
+                            />
+
+                            {(activeHeader === undefined || activeFooter === undefined) && (
+                                <LoadingOverlay
+                                    size="small"
+                                    backgroundColor={COLORS.white}
+                                    overlayOpacity={0.7}
+                                />
+                            )}
+                        </View>
                     </View>
                 </ScrollView>
 
@@ -451,5 +464,9 @@ const styles = StyleSheet.create({
         fontSize: 16,
         color: COLORS.gray[500],
         marginBottom: 24,
+    },
+    editorSectionsContainer: {
+        position: 'relative',
+        gap: 16,
     },
 });
