@@ -121,4 +121,12 @@ export default defineSchema({
         .index("by_network", ["network"])
         .index("by_address", ["address"]),
 
+    configurations: defineTable({
+        userId: v.string(),
+        name: v.string(),
+        value: v.string(),
+        type: v.string(), // 'number', 'string', 'boolean', etc
+        createdAt: v.number(),
+        updatedAt: v.number(),
+    }).index("by_user", ["userId"]),
 });

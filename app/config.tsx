@@ -23,6 +23,7 @@ export default function ConfigPage() {
                         { icon: 'bell', label: 'Notificações', onPress: () => { } },
                         { icon: 'globe', label: 'Idioma', onPress: () => { } },
                         { icon: 'moon', label: 'Tema', onPress: () => { } },
+                        { icon: 'target', label: 'Meta Diária', onPress: () => router.push('/daily-goal-config') },
                     ]}
                 />
                 <ConfigSection

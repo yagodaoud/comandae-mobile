@@ -1,8 +1,29 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { useQuery } from 'convex/react';
+import { api } from '@/convex/_generated/api';
 import { COLORS } from '@/constants/theme';
 
+const formatCurrency = (value: number) => {
+    return value.toLocaleString('pt-BR', {
+        style: 'currency',
+        currency: 'BRL',
+    });
+};
+
 const InsightsCard: React.FC = () => {
+    const dailyGoalConfig = useQuery(api.configurations.getConfig, { name: 'daily_goal' });
+    const dailyProgress = useQuery(api.slips.getDailyProgress);
+
+    const dailyGoal = dailyGoalConfig ? parseFloat(dailyGoalConfig.value) : 0;
+    const currentProgress = dailyProgress?.todayTotal || 0;
+    const yesterdayProgress = dailyProgress?.yesterdayTotal || 0;
+
+    const percentage = dailyGoal > 0 ? Math.round((currentProgress / dailyGoal) * 100) : 0;
+    const trend = dailyGoal > 0
+        ? Math.round((currentProgress / dailyGoal) * 100) - Math.round((yesterdayProgress / dailyGoal) * 100)
+        : 0;
+
     return (
         <View style={styles.insightCard}>
             <View style={styles.insightHeader}>
@@ -12,13 +33,20 @@ const InsightsCard: React.FC = () => {
                 </View>
             </View>
 
-            <Text style={styles.percentageText}>76% das metas atingidas</Text>
+            <Text style={styles.percentageText}>{percentage}% da meta atingida</Text>
             <View style={styles.progressContainer}>
                 <View style={styles.progressBackground}>
-                    <View style={[styles.progressFill, { width: '76%' }]} />
+                    <View style={[styles.progressFill, { width: `${percentage}%` }]} />
                 </View>
             </View>
-            <Text style={styles.trendText}>↑ 5% em relação a ontem</Text>
+            <View style={styles.detailsContainer}>
+                <Text style={styles.trendText}>
+                    {trend >= 0 ? '↑' : '↓'} {Math.abs(trend)}% em relação a ontem
+                </Text>
+                <Text style={styles.amountText}>
+                    {formatCurrency(currentProgress)} de {formatCurrency(dailyGoal)}
+                </Text>
+            </View>
         </View>
     );
 };
@@ -56,11 +84,6 @@ const styles = StyleSheet.create({
         color: '#333',
         marginBottom: 8,
     },
-    trendText: {
-        fontSize: 14,
-        color: '#4CAF50',
-        marginTop: 4,
-    },
     progressContainer: {
         marginBottom: 8,
     },
@@ -73,6 +96,20 @@ const styles = StyleSheet.create({
         height: 8,
         backgroundColor: COLORS.primary,
         borderRadius: 4,
+    },
+    detailsContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginTop: 8,
+    },
+    trendText: {
+        fontSize: 14,
+        color: '#4CAF50',
+    },
+    amountText: {
+        fontSize: 14,
+        color: COLORS.gray,
     },
 });
 

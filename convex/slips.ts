@@ -275,4 +275,52 @@ export const getTodayOrdersCount = query({
 
         return slips.length;
     },
+});
+
+export const getDailyProgress = query({
+    handler: async (ctx) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) {
+            throw new Error('Not authenticated');
+        }
+
+        // Get today's start and end timestamps
+        const now = new Date();
+        const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+        const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999).getTime();
+
+        // Get yesterday's start and end timestamps
+        const yesterday = new Date(now);
+        yesterday.setDate(yesterday.getDate() - 1);
+        const startOfYesterday = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate()).getTime();
+        const endOfYesterday = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate(), 23, 59, 59, 999).getTime();
+
+        // Get today's paid slips
+        const todaySlips = await ctx.db
+            .query('slips')
+            .withIndex('by_payment_time', (q) =>
+                q.gte('paymentTime', startOfDay).lte('paymentTime', endOfDay)
+            )
+            .filter((q) => q.eq(q.field('isOpen'), false))
+            .collect();
+
+        // Get yesterday's paid slips
+        const yesterdaySlips = await ctx.db
+            .query('slips')
+            .withIndex('by_payment_time', (q) =>
+                q.gte('paymentTime', startOfYesterday).lte('paymentTime', endOfYesterday)
+            )
+            .filter((q) => q.eq(q.field('isOpen'), false))
+            .collect();
+
+        // Calculate totals
+        const todayTotal = todaySlips.reduce((sum, slip) => sum + (slip.finalTotal || 0), 0);
+        const yesterdayTotal = yesterdaySlips.reduce((sum, slip) => sum + (slip.finalTotal || 0), 0);
+
+        return {
+            todayTotal,
+            yesterdayTotal,
+            slipCount: todaySlips.length,
+        };
+    },
 }); 
