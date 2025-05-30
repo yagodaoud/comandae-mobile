@@ -317,10 +317,19 @@ export const getDailyProgress = query({
         const todayTotal = todaySlips.reduce((sum, slip) => sum + (slip.finalTotal || 0), 0);
         const yesterdayTotal = yesterdaySlips.reduce((sum, slip) => sum + (slip.finalTotal || 0), 0);
 
+        // Calculate additional metrics
+        const todaySlipCount = todaySlips.length;
+        const yesterdaySlipCount = yesterdaySlips.length;
+        const averageTicketToday = todaySlipCount > 0 ? todayTotal / todaySlipCount : 0;
+        const averageTicketYesterday = yesterdaySlipCount > 0 ? yesterdayTotal / yesterdaySlipCount : 0;
+
         return {
             todayTotal,
             yesterdayTotal,
-            slipCount: todaySlips.length,
+            todaySlipCount,
+            yesterdaySlipCount,
+            averageTicketToday,
+            averageTicketYesterday,
         };
     },
 }); 

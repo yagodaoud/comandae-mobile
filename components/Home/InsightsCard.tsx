@@ -20,9 +20,24 @@ const InsightsCard: React.FC = () => {
     const yesterdayProgress = dailyProgress?.yesterdayTotal || 0;
 
     const percentage = dailyGoal > 0 ? Math.round((currentProgress / dailyGoal) * 100) : 0;
-    const trend = dailyGoal > 0
+    const trend = dailyGoal > 0 && yesterdayProgress > 0
         ? Math.round((currentProgress / dailyGoal) * 100) - Math.round((yesterdayProgress / dailyGoal) * 100)
         : 0;
+
+    const averageTicketToday = dailyProgress?.averageTicketToday || 0;
+    const averageTicketYesterday = dailyProgress?.averageTicketYesterday || 0;
+    const averageTicketTrend = averageTicketYesterday > 0
+        ? ((averageTicketToday - averageTicketYesterday) / averageTicketYesterday) * 100
+        : 0;
+
+    const getTrendColor = (value: number) => {
+        return value >= 0 ? '#4CAF50' : '#F44336';
+    };
+
+    const getTrendText = (value: number, hasYesterdayData: boolean) => {
+        if (!hasYesterdayData) return 'Sem dados de ontem';
+        return `${value >= 0 ? '↑' : '↓'} ${Math.abs(Math.round(value))}% em relação a ontem`;
+    };
 
     return (
         <View style={styles.insightCard}>
@@ -40,9 +55,19 @@ const InsightsCard: React.FC = () => {
                 </View>
             </View>
             <View style={styles.detailsContainer}>
-                <Text style={styles.trendText}>
-                    {trend >= 0 ? '↑' : '↓'} {Math.abs(trend)}% em relação a ontem
-                </Text>
+                <View>
+                    <Text style={[styles.trendText, { color: getTrendColor(trend) }]}>
+                        {getTrendText(trend, yesterdayProgress > 0)}
+                    </Text>
+                    {/* <Text style={styles.ticketText}>
+                        Ticket médio: {formatCurrency(averageTicketToday)}
+                        {averageTicketYesterday > 0 && (
+                            <Text style={[styles.trendText, { color: getTrendColor(averageTicketTrend), marginLeft: 4 }]}>
+                                ({averageTicketTrend >= 0 ? '↑' : '↓'} {Math.abs(Math.round(averageTicketTrend))}%)
+                            </Text>
+                        )}
+                    </Text> */}
+                </View>
                 <Text style={styles.amountText}>
                     {formatCurrency(currentProgress)} de {formatCurrency(dailyGoal)}
                 </Text>
@@ -100,16 +125,21 @@ const styles = StyleSheet.create({
     detailsContainer: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'center',
+        alignItems: 'flex-start',
         marginTop: 8,
     },
     trendText: {
         fontSize: 14,
-        color: '#4CAF50',
+    },
+    ticketText: {
+        fontSize: 14,
+        color: COLORS.gray,
+        marginTop: 4,
     },
     amountText: {
         fontSize: 14,
         color: COLORS.gray,
+        textAlign: 'right',
     },
 });
 
