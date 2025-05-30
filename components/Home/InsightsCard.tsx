@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
+import { useAuthRedirect } from '@/hooks/useAuthRedirect';
 import { COLORS } from '@/constants/theme';
 
 const formatCurrency = (value: number) => {
@@ -15,7 +16,10 @@ const InsightsCard: React.FC = () => {
     const dailyGoalConfig = useQuery(api.configurations.getConfig, { name: 'daily_goal' });
     const dailyProgress = useQuery(api.slips.getDailyProgress);
 
-    const dailyGoal = dailyGoalConfig ? parseFloat(dailyGoalConfig.value) : 0;
+    // Handle authentication errors
+    useAuthRedirect(dailyGoalConfig);
+
+    const dailyGoal = dailyGoalConfig && !(dailyGoalConfig instanceof Error) ? parseFloat(dailyGoalConfig.value) : 0;
     const currentProgress = dailyProgress?.todayTotal || 0;
     const yesterdayProgress = dailyProgress?.yesterdayTotal || 0;
 

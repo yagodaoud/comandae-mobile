@@ -329,7 +329,7 @@ export const getDailyProgress = query({
     handler: async (ctx) => {
         const identity = await ctx.auth.getUserIdentity();
         if (!identity) {
-            throw new Error('Not authenticated');
+            return null;
         }
 
         // Get today's start and end timestamps
