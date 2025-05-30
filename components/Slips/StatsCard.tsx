@@ -21,7 +21,7 @@ export const StatsCard: React.FC<StatsCardProps> = ({
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
                 <Text style={styles.statValue}>{longCount}</Text>
-                <Text style={styles.statLabel}>Aguardando</Text>
+                <Text style={styles.statLabel}>Demoradas</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
