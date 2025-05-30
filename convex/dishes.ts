@@ -125,6 +125,7 @@ export const getLowStockDishes = query({
         const products = await ctx.db
             .query("products")
             .filter(q => q.lt(q.field("stock"), args.threshold))
+            .filter(q => q.eq(q.field("hasInfiniteStock"), false))
             .collect();
         return products.length;
     },

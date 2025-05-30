@@ -52,7 +52,7 @@ export default function Stock() {
     const stats = {
         totalProducts: products?.length ?? 0,
         totalCategories: categories?.length ?? 0,
-        lowStock: products?.filter((p: Product) => p.stock < 10).length ?? 0,
+        lowStock: products?.filter((p: Product) => p.hasInfiniteStock === false && p.stock < 10).length ?? 0,
         totalValue: (products?.reduce((sum: number, product: Product) =>
             sum + (product.price * product.stock), 0) ?? 0).toFixed(2).replace('.', ','),
     };
@@ -102,6 +102,7 @@ export default function Stock() {
                             category={categories?.find((c: Category) => c._id === product.categoryId)?.name ?? ''}
                             price={product.price.toString()}
                             stock={product.stock}
+                            hasInfiniteStock={product.hasInfiniteStock}
                             image={product.image}
                             onPress={() => handleEditProduct(product)}
                         />

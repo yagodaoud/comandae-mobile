@@ -8,12 +8,13 @@ interface ProductCardProps {
     category: string;
     price: string;
     stock: number;
+    hasInfiniteStock: boolean;
     image: string;
     onPress: () => void;
 }
 
-const ProductCard: React.FC<ProductCardProps> = ({ name, category, price, stock, image, onPress }) => {
-    const lowStock = stock < 10;
+const ProductCard: React.FC<ProductCardProps> = ({ name, category, price, stock, hasInfiniteStock, image, onPress }) => {
+    const lowStock = hasInfiniteStock === false && stock < 10;
 
     return (
         <TouchableOpacity style={styles.productCard} onPress={onPress}>

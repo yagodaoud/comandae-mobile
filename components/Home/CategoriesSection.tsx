@@ -8,7 +8,7 @@ import { api } from "@/convex/_generated/api";
 
 const CategoriesSection: React.FC = () => {
     const dishCount = useQuery(api.dishes.getDishCount);
-    const lowStockCount = useQuery(api.dishes.getLowStockDishes, { threshold: 5 });
+    const lowStockCount = useQuery(api.dishes.getLowStockDishes, { threshold: 10 });
     const openSlipsCount = useQuery(api.slips.getOpenSlipsCount);
     const todayOrdersCount = useQuery(api.slips.getTodayOrdersCount);
 
