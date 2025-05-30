@@ -285,12 +285,32 @@ export const updateSlipItems = mutation({
 // Helper function to format time difference
 function formatTimeDiff(diff: number): string {
     const minutes = Math.floor(diff / 60000);
-    if (minutes < 60) {
-        return `${minutes}min`;
-    }
     const hours = Math.floor(minutes / 60);
-    const remainingMinutes = minutes % 60;
-    return `${hours}h ${remainingMinutes}min`;
+    const days = Math.floor(hours / 24);
+    const months = Math.floor(days / 30);
+    const years = Math.floor(months / 12);
+
+    if (years > 0) {
+        const remainingMonths = months % 12;
+        return `${years}a ${remainingMonths}m`;
+    }
+
+    if (months > 0) {
+        const remainingDays = days % 30;
+        return `${months}m ${remainingDays}d`;
+    }
+
+    if (days > 0) {
+        const remainingHours = hours % 24;
+        return `${days}d ${remainingHours}h`;
+    }
+
+    if (hours > 0) {
+        const remainingMinutes = minutes % 60;
+        return `${hours}h ${remainingMinutes}min`;
+    }
+
+    return `${minutes}min`;
 }
 
 export const getOpenSlipsCount = query({
