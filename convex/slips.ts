@@ -88,7 +88,7 @@ export const createSlip = mutation({
     handler: async (ctx, args) => {
         const { table, items } = args;
 
-        // Calculate total
+        // Calculate total and update stock
         let total = 0;
         for (const item of items) {
             const product = await ctx.db.get(item.productId);
@@ -96,6 +96,15 @@ export const createSlip = mutation({
 
             const price = item.customPrice ?? product.price;
             total += price * item.quantity;
+
+            // Subtract stock if product doesn't have infinite stock
+            if (!product.hasInfiniteStock) {
+                const newStock = product.stock - item.quantity;
+                if (newStock < 0) {
+                    throw new Error(`Insufficient stock for product: ${product.name}`);
+                }
+                await ctx.db.patch(item.productId, { stock: newStock });
+            }
         }
 
         const now = Date.now();
@@ -214,14 +223,53 @@ export const updateSlipItems = mutation({
     handler: async (ctx, args) => {
         const { id, items } = args;
 
-        // Calculate new total
+        // Get the current slip to compare quantities
+        const currentSlip = await ctx.db.get(id);
+        if (!currentSlip) throw new Error("Slip not found");
+
+        // Calculate new total and handle stock adjustments
         let total = 0;
+
+        // First, add back stock from removed or reduced items
+        for (const oldItem of currentSlip.items) {
+            const newItem = items.find(item => item.productId === oldItem.productId);
+            const product = await ctx.db.get(oldItem.productId);
+            if (!product || product.hasInfiniteStock) continue;
+
+            if (!newItem) {
+                // Item was completely removed, add back all stock
+                await ctx.db.patch(oldItem.productId, {
+                    stock: product.stock + oldItem.quantity
+                });
+            } else if (newItem.quantity < oldItem.quantity) {
+                // Item quantity was reduced, add back the difference
+                const quantityDiff = oldItem.quantity - newItem.quantity;
+                await ctx.db.patch(oldItem.productId, {
+                    stock: product.stock + quantityDiff
+                });
+            }
+        }
+
+        // Then, subtract stock for new or increased items
         for (const item of items) {
             const product = await ctx.db.get(item.productId);
             if (!product) continue;
 
             const price = item.customPrice ?? product.price;
             total += price * item.quantity;
+
+            if (!product.hasInfiniteStock) {
+                const oldItem = currentSlip.items.find(old => old.productId === item.productId);
+                const quantityDiff = oldItem ? item.quantity - oldItem.quantity : item.quantity;
+
+                if (quantityDiff > 0) {
+                    const newStock = product.stock - quantityDiff;
+                    if (newStock < 0) {
+                        throw new Error(`Insufficient stock for product: ${product.name}`);
+                    }
+                    await ctx.db.patch(item.productId, { stock: newStock });
+                }
+            }
         }
 
         await ctx.db.patch(id, {
