@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, Modal } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, Modal, Platform } from 'react-native';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS } from '@/constants/theme';
 import { useQuery } from 'convex/react';
@@ -7,6 +7,7 @@ import { api } from '@/convex/_generated/api';
 import { EmptyState } from '@/components/EmptyState';
 import { QRCodeModal } from './QRCodeModal';
 import { BitcoinPriceService } from '@/utils/BitcoinPriceService';
+import { Id } from '@/convex/_generated/dataModel';
 
 interface PaymentMethod {
     id: string;
@@ -25,7 +26,7 @@ interface PaymentMethodSelectorProps {
 }
 
 interface PixKey {
-    _id: string;
+    _id: Id<'pix'>;
     type: 'cpf' | 'cnpj' | 'email' | 'phone';
     key: string;
     city: string;
@@ -34,7 +35,7 @@ interface PixKey {
 }
 
 interface BitcoinKey {
-    _id: string;
+    _id: Id<'bitcoin'>;
     network: 'mainnet' | 'testnet' | 'lightning';
     address: string;
     isActive: boolean;
@@ -57,118 +58,161 @@ export const PaymentMethodSelector = ({
     const [cashInput, setCashInput] = useState('');
     const [btcPriceInBRL, setBtcPriceInBRL] = useState(0);
     const [btcPriceError, setBtcPriceError] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
 
-    const pixConfigs = useQuery(api.pix.getPixConfigs);
-    const bitcoinConfigs = useQuery(api.bitcoin.getBitcoinConfigs);
+    const pixConfigs = useQuery(api.pix.getPixConfigs) || [];
+    const bitcoinConfigs = useQuery(api.bitcoin.getBitcoinConfigs) || [];
 
     useEffect(() => {
+        let isMounted = true;
         const fetchBitcoinPrice = async () => {
             try {
+                if (!isMounted) return;
                 setBtcPriceError(null);
                 const price = await BitcoinPriceService.getCurrentBitcoinPriceInBRL();
-                setBtcPriceInBRL(price);
+                if (isMounted) {
+                    setBtcPriceInBRL(price);
+                }
             } catch (error) {
                 console.error('Error fetching Bitcoin price:', error);
-                setBtcPriceError('Erro ao obter preço do Bitcoin');
+                if (isMounted) {
+                    setBtcPriceError('Erro ao obter preço do Bitcoin');
+                }
             }
         };
 
         fetchBitcoinPrice();
         const interval = setInterval(fetchBitcoinPrice, 60000); // Update every minute
-        return () => clearInterval(interval);
+        return () => {
+            isMounted = false;
+            clearInterval(interval);
+        };
     }, []);
 
-    const renderIcon = (method: PaymentMethod) => {
-        if (method.iconType === 'material') {
-            return <MaterialCommunityIcons name={method.icon as any} size={20} color={selectedPaymentMethod === method.id ? '#fff' : '#666'} />;
+    const renderIcon = useCallback((method: PaymentMethod) => {
+        try {
+            if (method.iconType === 'material') {
+                return <MaterialCommunityIcons name={method.icon as any} size={20} color={selectedPaymentMethod === method.id ? '#fff' : '#666'} />;
+            }
+            return <Feather name={method.icon as any} size={20} color={selectedPaymentMethod === method.id ? '#fff' : '#666'} />;
+        } catch (error) {
+            console.error('Error rendering icon:', error);
+            return null;
         }
-        return <Feather name={method.icon as any} size={20} color={selectedPaymentMethod === method.id ? '#fff' : '#666'} />;
-    };
+    }, [selectedPaymentMethod]);
 
-    const handleQRCodePress = () => {
-        setShowKeysModal(true);
-    };
+    const handleQRCodePress = useCallback(() => {
+        try {
+            setError(null);
+            setShowKeysModal(true);
+        } catch (error) {
+            console.error('Error showing QR code modal:', error);
+            setError('Erro ao abrir QR code');
+        }
+    }, []);
 
-    const handleKeySelect = (key: PaymentKey) => {
-        setSelectedKey(key);
-        setShowKeysModal(false);
-        setShowQRCodeModal(true);
-    };
+    const handleKeySelect = useCallback((key: PaymentKey) => {
+        try {
+            setError(null);
+            setSelectedKey(key);
+            setShowKeysModal(false);
+            setShowQRCodeModal(true);
+        } catch (error) {
+            console.error('Error selecting key:', error);
+            setError('Erro ao selecionar chave');
+            setShowKeysModal(false);
+        }
+    }, []);
 
-    const renderKeysModal = () => {
+    const handleCloseQRCodeModal = useCallback(() => {
+        try {
+            setShowQRCodeModal(false);
+            setSelectedKey(null);
+        } catch (error) {
+            console.error('Error closing QR code modal:', error);
+            setError('Erro ao fechar QR code');
+        }
+    }, []);
+
+    const renderKeysModal = useCallback(() => {
         const isPix = selectedPaymentMethod === 'pix';
         const keys: PaymentKey[] = [];
 
-        if (isPix && pixConfigs) {
-            keys.push(...pixConfigs.filter(config => config.isActive));
-        } else if (!isPix && bitcoinConfigs) {
-            keys.push(...bitcoinConfigs.filter(config => config.isActive));
-        }
+        try {
+            if (isPix && pixConfigs) {
+                keys.push(...pixConfigs.filter(config => config.isActive));
+            } else if (!isPix && bitcoinConfigs) {
+                keys.push(...bitcoinConfigs.filter(config => config.isActive));
+            }
 
-        return (
-            <Modal
-                visible={showKeysModal}
-                transparent
-                animationType="slide"
-                onRequestClose={() => setShowKeysModal(false)}
-            >
-                <View style={styles.modalOverlay}>
-                    <View style={styles.modalContent}>
-                        <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>
-                                {isPix ? 'Chaves PIX' : 'Endereços Bitcoin'}
-                            </Text>
-                            <TouchableOpacity onPress={() => setShowKeysModal(false)}>
-                                <Feather name="x" size={24} color="#666" />
-                            </TouchableOpacity>
-                        </View>
+            return (
+                <Modal
+                    visible={showKeysModal}
+                    transparent
+                    animationType="slide"
+                    onRequestClose={() => setShowKeysModal(false)}
+                >
+                    <View style={styles.modalOverlay}>
+                        <View style={styles.modalContent}>
+                            <View style={styles.modalHeader}>
+                                <Text style={styles.modalTitle}>
+                                    {isPix ? 'Chaves PIX' : 'Endereços Bitcoin'}
+                                </Text>
+                                <TouchableOpacity onPress={() => setShowKeysModal(false)}>
+                                    <Feather name="x" size={24} color="#666" />
+                                </TouchableOpacity>
+                            </View>
 
-                        <View style={styles.keysList}>
-                            {keys.length > 0 ? (
-                                keys.map((key: PaymentKey) => (
-                                    <TouchableOpacity
-                                        key={key._id}
-                                        style={styles.keyItem}
-                                        onPress={() => handleKeySelect(key)}
-                                    >
-                                        <View style={styles.keyInfo}>
-                                            <Text style={styles.keyLabel}>
-                                                {isPix ? (key as PixKey).type : (key as BitcoinKey).network}
-                                            </Text>
-                                            <Text style={styles.keyValue} numberOfLines={1}>
-                                                {isPix ? (key as PixKey).key : (key as BitcoinKey).address}
-                                            </Text>
-                                            {isPix && (key as PixKey).company_name && (
-                                                <Text style={styles.companyName}>
-                                                    {(key as PixKey).company_name}
+                            <View style={styles.keysList}>
+                                {keys.length > 0 ? (
+                                    keys.map((key: PaymentKey) => (
+                                        <TouchableOpacity
+                                            key={key._id}
+                                            style={styles.keyItem}
+                                            onPress={() => handleKeySelect(key)}
+                                        >
+                                            <View style={styles.keyInfo}>
+                                                <Text style={styles.keyLabel}>
+                                                    {isPix ? (key as PixKey).type : (key as BitcoinKey).network}
                                                 </Text>
-                                            )}
-                                        </View>
-                                        <Feather name="chevron-right" size={20} color="#666" />
-                                    </TouchableOpacity>
-                                ))
-                            ) : (
-                                <EmptyState
-                                    icon={
-                                        isPix ? (
-                                            <Feather name="smartphone" size={48} color="#ccc" />
-                                        ) : (
-                                            <MaterialCommunityIcons name="bitcoin" size={48} color="#ccc" />
-                                        )
-                                    }
-                                    message={
-                                        isPix
-                                            ? "Nenhuma chave PIX configurada"
-                                            : "Nenhum endereço Bitcoin configurado"
-                                    }
-                                />
-                            )}
+                                                <Text style={styles.keyValue} numberOfLines={1}>
+                                                    {isPix ? (key as PixKey).key : (key as BitcoinKey).address}
+                                                </Text>
+                                                {isPix && (key as PixKey).company_name && (
+                                                    <Text style={styles.companyName}>
+                                                        {(key as PixKey).company_name}
+                                                    </Text>
+                                                )}
+                                            </View>
+                                            <Feather name="chevron-right" size={20} color="#666" />
+                                        </TouchableOpacity>
+                                    ))
+                                ) : (
+                                    <EmptyState
+                                        icon={
+                                            isPix ? (
+                                                <Feather name="smartphone" size={48} color="#ccc" />
+                                            ) : (
+                                                <MaterialCommunityIcons name="bitcoin" size={48} color="#ccc" />
+                                            )
+                                        }
+                                        message={
+                                            isPix
+                                                ? "Nenhuma chave PIX configurada"
+                                                : "Nenhum endereço Bitcoin configurado"
+                                        }
+                                    />
+                                )}
+                            </View>
                         </View>
                     </View>
-                </View>
-            </Modal>
-        );
-    };
+                </Modal>
+            );
+        } catch (error) {
+            console.error('Error rendering keys modal:', error);
+            return null;
+        }
+    }, [showKeysModal, selectedPaymentMethod, pixConfigs, bitcoinConfigs, handleKeySelect]);
 
     return (
         <View style={styles.container}>
@@ -229,19 +273,25 @@ export const PaymentMethodSelector = ({
                 </View>
             )}
 
+            {error && (
+                <Text style={styles.errorText}>{error}</Text>
+            )}
+
             {selectedPaymentMethod === 'bitcoin' && btcPriceError && (
                 <Text style={styles.errorText}>{btcPriceError}</Text>
             )}
 
             {renderKeysModal()}
-            <QRCodeModal
-                visible={showQRCodeModal}
-                onClose={() => setShowQRCodeModal(false)}
-                selectedKey={selectedKey}
-                isPix={selectedPaymentMethod === 'pix'}
-                amount={grandTotal ? parseFloat(grandTotal) : 0}
-                btcPriceInBRL={btcPriceInBRL}
-            />
+            {selectedKey && (
+                <QRCodeModal
+                    visible={showQRCodeModal}
+                    onClose={handleCloseQRCodeModal}
+                    selectedKey={selectedKey}
+                    isPix={selectedPaymentMethod === 'pix'}
+                    amount={grandTotal ? parseFloat(grandTotal.replace(',', '.')) : 0}
+                    btcPriceInBRL={btcPriceInBRL}
+                />
+            )}
         </View>
     );
 };

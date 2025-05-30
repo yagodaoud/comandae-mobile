@@ -5,6 +5,7 @@ import { COLORS } from '@/constants/theme';
 import TransparentHeader from '@/components/TransparentHeader';
 import { useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
+import { Id } from '@/convex/_generated/dataModel';
 
 import HeaderSection from './HeaderSection';
 import CategorySection from './CategorySection';
@@ -18,19 +19,39 @@ import { useRouter } from 'expo-router';
 
 const ITEMS_PER_PAGE = 10;
 
+interface Dish {
+    _id: Id<'dishes'>;
+    name: string;
+    description: string;
+    price: number;
+    emoji: string;
+    isFavorite: boolean;
+    categoryId: Id<'dish_categories'>;
+}
+
+interface DishData {
+    id: Id<'dishes'>;
+    name: string;
+    description: string;
+    price: number;
+    emoji: string;
+    isFavorite: boolean;
+    categoryId: Id<'dish_categories'>;
+}
+
 export default function Dishes() {
     const insets = useSafeAreaInsets();
 
-    const [activeCategory, setActiveCategory] = useState(null);
+    const [activeCategory, setActiveCategory] = useState<Id<'dish_categories'> | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [isSearching, setIsSearching] = useState(false);
 
     const [isAddModalVisible, setIsAddModalVisible] = useState(false);
     const [isCategoryModalVisible, setIsCategoryModalVisible] = useState(false);
-    const [currentEditDish, setCurrentEditDish] = useState(null);
+    const [currentEditDish, setCurrentEditDish] = useState<DishData | null>(null);
     const [isEditing, setIsEditing] = useState(false);
 
-    const searchTimeout = useRef(null);
+    const searchTimeout = useRef<NodeJS.Timeout | null>(null);
 
     const router = useRouter();
 
@@ -52,7 +73,7 @@ export default function Dishes() {
 
     const deleteDish = useMutation(api.menu.deleteDish);
 
-    const handleSearchChange = (query) => {
+    const handleSearchChange = (query: string) => {
         setIsSearching(true);
 
         if (searchTimeout.current) {
@@ -76,21 +97,26 @@ export default function Dishes() {
         setIsAddModalVisible(true);
     };
 
-    const handleEditDish = (dish) => {
-        setIsEditing(true);
-        setCurrentEditDish({
-            id: dish._id,
-            name: dish.name,
-            description: dish.description,
-            price: dish.price,
-            emoji: dish.emoji,
-            isFavorite: dish.isFavorite,
-            categoryId: dish.categoryId
-        });
-        setIsAddModalVisible(true);
+    const handleEditDish = (dish: Dish) => {
+        try {
+            setIsEditing(true);
+            setCurrentEditDish({
+                id: dish._id,
+                name: dish.name,
+                description: dish.description,
+                price: dish.price,
+                emoji: dish.emoji,
+                isFavorite: dish.isFavorite,
+                categoryId: dish.categoryId
+            } as DishData);
+            setIsAddModalVisible(true);
+        } catch (error) {
+            console.error('Error editing dish:', error);
+            alert('Erro ao editar o prato. Tente novamente.');
+        }
     };
 
-    const handleDeleteDish = async (dishId) => {
+    const handleDeleteDish = async (dishId: Id<'dishes'>) => {
         try {
             await deleteDish({ id: dishId });
             resetDishes();
@@ -114,6 +140,10 @@ export default function Dishes() {
         resetDishes();
     };
 
+    const handleCategoryChange = useCallback((categoryId: string | null) => {
+        setActiveCategory(categoryId as Id<'dish_categories'> | null);
+    }, []);
+
     const bottomPadding = 60 + (Platform.OS === 'ios' ? insets.bottom : 0);
 
     return (
@@ -131,7 +161,7 @@ export default function Dishes() {
             <CategorySection
                 categories={categories}
                 activeCategory={activeCategory}
-                setActiveCategory={setActiveCategory}
+                setActiveCategory={handleCategoryChange}
                 onAddCategory={() => setIsCategoryModalVisible(true)}
                 dishes={dishes}
             />

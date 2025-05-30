@@ -6,15 +6,15 @@ export class PixQRGenerator {
     private static readonly COUNTRY_CODE = 'BR';
     private static readonly CURRENCY = '986';
 
-    public static generatePixCode(cnpj: string, amount: number): string {
+    public static generatePixCode(pixKey: string, amount: number): string {
         const payload = new Array<string>();
 
         // PIX Domain
         payload.push('00020126');
         payload.push('360014' + this.PIX_DOMAIN);
 
-        // CNPJ
-        payload.push('01' + this.padStart(cnpj.length.toString(), 2) + cnpj);
+        // PIX Key
+        payload.push('01' + this.padStart(pixKey.length.toString(), 2) + pixKey);
 
         // Merchant Category Code
         payload.push('5204' + this.MERCHANT_CATEGORY_CODE);

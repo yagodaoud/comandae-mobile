@@ -1,12 +1,23 @@
 import React, { useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, Platform } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { COLORS } from '@/constants/theme';
 import { DishCard } from './DishCard';
 import { LoadingOverlay } from '@/components/ui/LoadingOverlay';
+import { Id } from '@/convex/_generated/dataModel';
+
+interface Dish {
+    _id: Id<'dishes'>;
+    name: string;
+    description: string;
+    price: number;
+    emoji: string;
+    isFavorite: boolean;
+    categoryId: Id<'dish_categories'>;
+}
 
 interface DishesSectionProps {
-    dishes: any[];
+    dishes: Dish[];
     isLoading: boolean;
     isSearching: boolean;
     searchQuery: string;
@@ -14,8 +25,8 @@ interface DishesSectionProps {
     hasMore: boolean;
     loadingMore: boolean;
     loadMoreDishes: () => void;
-    onEditDish: (dish: any) => void;
-    onDeleteDish: (dishId: string) => void;
+    onEditDish: (dish: Dish) => void;
+    onDeleteDish: (dishId: Id<'dishes'>) => void;
     onAddItem: () => void;
     bottomPadding: number;
 }
@@ -34,19 +45,26 @@ const DishesSection = ({
     onAddItem,
     bottomPadding
 }: DishesSectionProps) => {
-    const renderDishItem = useCallback(({ item }) => (
-        <DishCard
-            key={item._id}
-            id={item._id}
-            name={item.name}
-            price={item.price.toFixed(2).replace('.', ',')}
-            description={item.description}
-            emoji={item.emoji}
-            isFavorite={item.isFavorite}
-            onEdit={() => onEditDish(item)}
-            onDelete={onDeleteDish}
-        />
-    ), [onEditDish, onDeleteDish]);
+    const renderDishItem = useCallback(({ item }: { item: Dish }) => {
+        try {
+            return (
+                <DishCard
+                    key={item._id}
+                    id={item._id}
+                    name={item.name}
+                    price={item.price.toFixed(2).replace('.', ',')}
+                    description={item.description}
+                    emoji={item.emoji}
+                    isFavorite={item.isFavorite}
+                    onEdit={() => onEditDish(item)}
+                    onDelete={() => onDeleteDish(item._id)}
+                />
+            );
+        } catch (error) {
+            console.error('Error rendering dish item:', error);
+            return null;
+        }
+    }, [onEditDish, onDeleteDish]);
 
     const ListEmptyComponent = useCallback(() => (
         <View style={styles.emptyState}>
@@ -119,10 +137,11 @@ const DishesSection = ({
                     onEndReachedThreshold={0.3}
                     ListEmptyComponent={ListEmptyComponent}
                     ListFooterComponent={ListFooterComponent}
-                    removeClippedSubviews={true}
-                    maxToRenderPerBatch={5}
-                    initialNumToRender={5}
-                    windowSize={10}
+                    removeClippedSubviews={Platform.OS === 'android'}
+                    maxToRenderPerBatch={3}
+                    initialNumToRender={3}
+                    windowSize={5}
+                    updateCellsBatchingPeriod={50}
                 />
             )}
         </>

@@ -1,4 +1,4 @@
-package com.anonymous.comandaemobile
+package com.comandaemobile
 
 import android.os.Build
 import android.os.Bundle

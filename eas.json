@@ -19,7 +19,9 @@
                 "buildType": "apk"
             },
             "env": {
-                "APP_ENV": "preview"
+                "APP_ENV": "preview",
+                "CLERK_WEBHOOK_SECRET": "whsec_LsDxemUJDNeXFr98axouusaI5LWkNPs7",
+                "CONVEX_DEPLOYMENT": "dev:earnest-goat-64"
             }
         },
         "production": {

@@ -1,4 +1,4 @@
-package com.anonymous.comandaemobile
+package com.comandaemobile
 
 import android.app.Application
 import android.content.res.Configuration
