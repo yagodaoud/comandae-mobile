@@ -169,6 +169,20 @@ export const DishSelectionModal: React.FC<DishSelectionModalProps> = ({
     const categories = useQuery(api.dishes.listCategories);
     const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
 
+    // Add effect to automatically select favorite dishes when modal opens
+    useEffect(() => {
+        if (visible) {
+            // Get all favorite dishes
+            const favoriteDishes = allDishes.filter(dish => dish.isFavorite);
+            // Select each favorite dish
+            favoriteDishes.forEach(dish => {
+                if (!selectedDishIds.has(dish._id)) {
+                    onToggleDish(dish._id);
+                }
+            });
+        }
+    }, [visible, allDishes, selectedDishIds, onToggleDish]);
+
     useEffect(() => {
         if (categories && categories.length > 0) {
             setExpandedCategories(new Set([categories[0]._id]));
@@ -198,8 +212,22 @@ export const DishSelectionModal: React.FC<DishSelectionModalProps> = ({
             }
         }
 
+        // Sort dishes with selected ones first, then alphabetically
+        for (const [categoryId, dishes] of grouped.entries()) {
+            grouped.set(categoryId, [...dishes].sort((a, b) => {
+                // First compare by selection status
+                const aSelected = selectedDishIds.has(a._id);
+                const bSelected = selectedDishIds.has(b._id);
+                if (aSelected !== bSelected) {
+                    return aSelected ? -1 : 1;
+                }
+                // Then sort alphabetically
+                return a.name.localeCompare(b.name);
+            }));
+        }
+
         return grouped;
-    }, [categories, matchedDishes, allDishes]);
+    }, [categories, matchedDishes, allDishes, selectedDishIds]);
 
     const handleToggleCategory = useCallback((categoryId: string) => {
         setExpandedCategories(prev => {

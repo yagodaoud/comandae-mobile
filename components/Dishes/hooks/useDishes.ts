@@ -42,14 +42,32 @@ export const useDishes = ({
         categoryId: activeCategory
     });
 
-    // Update all dishes when category changes
+    // Update all dishes when category or search query changes
     useEffect(() => {
         try {
             if (categoryDishes) {
-                allDishes.current = categoryDishes;
+                let filteredDishes = categoryDishes;
+
+                // Apply search filter if search query exists
+                if (searchQuery && searchQuery.trim() !== '') {
+                    const query = searchQuery.toLowerCase().trim();
+                    filteredDishes = categoryDishes.filter(dish =>
+                        dish.name.toLowerCase().includes(query) ||
+                        dish.description.toLowerCase().includes(query)
+                    );
+                }
+
+                // Sort alphabetically only if there's an active filter
+                if (searchQuery?.trim() || activeCategory) {
+                    filteredDishes = [...filteredDishes].sort((a, b) =>
+                        a.name.localeCompare(b.name)
+                    );
+                }
+
+                allDishes.current = filteredDishes;
                 setSkip(0);
-                setHasMore(categoryDishes.length > itemsPerPage);
-                setDishes(categoryDishes.slice(0, itemsPerPage));
+                setHasMore(filteredDishes.length > itemsPerPage);
+                setDishes(filteredDishes.slice(0, itemsPerPage));
             } else {
                 allDishes.current = [];
                 setDishes([]);
@@ -60,7 +78,7 @@ export const useDishes = ({
             setError(err instanceof Error ? err : new Error('Unknown error occurred'));
             setIsLoading(false);
         }
-    }, [categoryDishes, itemsPerPage]);
+    }, [categoryDishes, searchQuery, itemsPerPage, activeCategory]);
 
     const loadMoreDishes = () => {
         try {
