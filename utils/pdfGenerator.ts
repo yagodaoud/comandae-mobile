@@ -130,7 +130,7 @@ const populateQuadrant = (
     col: number
 ) => {
     const x = col * QUADRANT_WIDTH + MARGIN;
-    const y = PAGE_HEIGHT - (row * QUADRANT_HEIGHT + (4 * MARGIN));
+    const y = PAGE_HEIGHT - (row * QUADRANT_HEIGHT + (4 * MARGIN) - 70);
 
     let currentY = writeCategory(doc, 'Salads', categories.salads, x, y);
 

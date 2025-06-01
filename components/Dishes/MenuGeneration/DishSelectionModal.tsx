@@ -1,13 +1,14 @@
 import React, { useMemo, useCallback, memo, useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, FlatList, Animated, Platform, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, FlatList, Animated, Platform, ScrollView, TextInput } from 'react-native';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Doc, Id } from '@/convex/_generated/dataModel';
 import { COLORS } from '@/constants/theme';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, Feather } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
+import AddDishModal from '../AddDishModal/AddDishModal';
 
 interface DishSelectionModalProps {
     visible: boolean;
@@ -97,8 +98,6 @@ const CategorySection = memo(({
         }).start(() => setIsAnimating(false));
     }, [isExpanded]);
 
-    if (dishes.length === 0) return null;
-
     // Memoize the dishes list to prevent unnecessary re-renders
     const dishItems = useMemo(() =>
         dishes.map(dish => (
@@ -150,7 +149,7 @@ const CategorySection = memo(({
                         setContentHeight(height);
                     }}
                 >
-                    {dishItems}
+                    {dishes.length > 0 ? dishItems : null}
                 </View>
             </Animated.View>
         </View>
@@ -168,6 +167,10 @@ export const DishSelectionModal: React.FC<DishSelectionModalProps> = ({
 }) => {
     const categories = useQuery(api.dishes.listCategories);
     const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+    const [isSearchVisible, setIsSearchVisible] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+    const searchInputRef = React.useRef<TextInput>(null);
+    const [isAddModalVisible, setIsAddModalVisible] = useState(false);
 
     // Add effect to automatically select favorite dishes when modal opens
     useEffect(() => {
@@ -192,42 +195,46 @@ export const DishSelectionModal: React.FC<DishSelectionModalProps> = ({
     const dishesByCategory = useMemo(() => {
         if (!categories) return new Map();
 
-        // Pre-allocate the map with empty arrays
         const grouped = new Map(
-            categories.map(category => [category._id, []])
+            categories.map(category => [category._id, [] as Doc<'dishes'>[]])
         );
 
-        // Process matched dishes first (usually smaller set)
-        for (const dish of matchedDishes) {
-            grouped.get(dish.categoryId)?.push(dish);
+        // Determine which dishes to show
+        let dishesToShow: Doc<'dishes'>[];
+
+        if (searchQuery.trim()) {
+            // When searching, filter from ALL dishes
+            dishesToShow = allDishes.filter(dish =>
+                dish.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                (dish.description && dish.description.toLowerCase().includes(searchQuery.toLowerCase()))
+            );
+        } else {
+            // When not searching, show matched dishes or all dishes
+            dishesToShow = allDishes; // or matchedDishes based on your needs
         }
 
-        // Process remaining dishes only if needed
-        if (matchedDishes.length < allDishes.length) {
-            const matchedIds = new Set(matchedDishes.map(d => d._id));
-            for (const dish of allDishes) {
-                if (!matchedIds.has(dish._id)) {
-                    grouped.get(dish.categoryId)?.push(dish);
-                }
+        // Group dishes by category
+        for (const dish of dishesToShow) {
+            const categoryDishes = grouped.get(dish.categoryId);
+            if (categoryDishes) {
+                categoryDishes.push(dish);
             }
         }
 
         // Sort dishes with selected ones first, then alphabetically
         for (const [categoryId, dishes] of grouped.entries()) {
             grouped.set(categoryId, [...dishes].sort((a, b) => {
-                // First compare by selection status
                 const aSelected = selectedDishIds.has(a._id);
                 const bSelected = selectedDishIds.has(b._id);
                 if (aSelected !== bSelected) {
                     return aSelected ? -1 : 1;
                 }
-                // Then sort alphabetically
                 return a.name.localeCompare(b.name);
             }));
         }
 
         return grouped;
-    }, [categories, matchedDishes, allDishes, selectedDishIds]);
+    }, [categories, allDishes, selectedDishIds, searchQuery]);
 
     const handleToggleCategory = useCallback((categoryId: string) => {
         setExpandedCategories(prev => {
@@ -240,6 +247,23 @@ export const DishSelectionModal: React.FC<DishSelectionModalProps> = ({
             return newSet;
         });
     }, []);
+
+    const handleSearchPress = () => {
+        setIsSearchVisible(true);
+        setTimeout(() => {
+            searchInputRef.current?.focus();
+        }, 100);
+    };
+
+    const handleAddDish = () => {
+        setIsAddModalVisible(true);
+    };
+
+    const handleDishAdded = () => {
+        setIsAddModalVisible(false);
+        // Refresh the dishes list
+        // You might want to add a callback prop to refresh the dishes
+    };
 
     const renderCategory = useCallback(({ item: category }: { item: Doc<'dish_categories'> }) => {
         const dishes = dishesByCategory.get(category._id) || [];
@@ -265,7 +289,43 @@ export const DishSelectionModal: React.FC<DishSelectionModalProps> = ({
             <View style={styles.modalOverlay}>
                 <View style={styles.modalContent}>
                     <View style={styles.modalHeader}>
-                        <Text style={styles.modalTitle}>Selecione os pratos</Text>
+                        <View style={styles.modalHeaderTop}>
+                            <Text style={styles.modalTitle}>Selecione os pratos</Text>
+                            <View style={styles.headerActions}>
+                                <TouchableOpacity
+                                    style={styles.headerIconButton}
+                                    onPress={handleSearchPress}
+                                >
+                                    <Ionicons name="search" size={24} color={COLORS.gray[500]} />
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={styles.headerIconButton}
+                                    onPress={handleAddDish}
+                                >
+                                    <Feather name="plus" size={24} color={COLORS.gray[500]} />
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                        {isSearchVisible && (
+                            <View style={styles.searchContainer}>
+                                <TextInput
+                                    ref={searchInputRef}
+                                    style={styles.searchInput}
+                                    placeholder="Buscar pratos..."
+                                    value={searchQuery}
+                                    onChangeText={setSearchQuery}
+                                    autoFocus
+                                />
+                                {searchQuery ? (
+                                    <TouchableOpacity
+                                        style={styles.clearSearchButton}
+                                        onPress={() => setSearchQuery('')}
+                                    >
+                                        <Ionicons name="close-circle" size={20} color={COLORS.gray[500]} />
+                                    </TouchableOpacity>
+                                ) : null}
+                            </View>
+                        )}
                         <Text style={styles.modalSubtitle}>
                             {selectedDishIds.size} pratos selecionados
                         </Text>
@@ -284,7 +344,7 @@ export const DishSelectionModal: React.FC<DishSelectionModalProps> = ({
                             windowSize={3}
                             updateCellsBatchingPeriod={50}
                             getItemLayout={(data, index) => ({
-                                length: 80, // Approximate height of each category
+                                length: 80,
                                 offset: 80 * index,
                                 index,
                             })}
@@ -307,6 +367,13 @@ export const DishSelectionModal: React.FC<DishSelectionModalProps> = ({
                     </View>
                 </View>
             </View>
+
+            <AddDishModal
+                visible={isAddModalVisible}
+                categories={categories || []}
+                onClose={() => setIsAddModalVisible(false)}
+                onDishAdded={handleDishAdded}
+            />
         </Modal>
     );
 };
@@ -339,6 +406,36 @@ const styles = StyleSheet.create({
         padding: 20,
         borderBottomWidth: 1,
         borderBottomColor: COLORS.lightGray,
+    },
+    modalHeaderTop: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 8,
+    },
+    headerActions: {
+        flexDirection: 'row',
+        gap: 12,
+    },
+    headerIconButton: {
+        padding: 4,
+    },
+    searchContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: COLORS.gray[100],
+        borderRadius: 8,
+        paddingHorizontal: 12,
+        marginBottom: 8,
+    },
+    searchInput: {
+        flex: 1,
+        height: 40,
+        fontSize: 16,
+        color: COLORS.black,
+    },
+    clearSearchButton: {
+        padding: 4,
     },
     modalTitle: {
         fontSize: 20,
