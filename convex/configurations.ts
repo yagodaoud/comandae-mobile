@@ -5,14 +5,21 @@ export const getConfig = query({
     args: { name: v.string() },
     handler: async (ctx, args) => {
         const identity = await ctx.auth.getUserIdentity();
-        if (!identity) {
-            return null;
+        const userId = identity?.subject;
+
+        // Special case for daily_goal - get it without user filter
+        if (args.name === 'daily_goal') {
+            const config = await ctx.db
+                .query('configurations')
+                .filter((q) => q.eq(q.field('name'), args.name))
+                .first();
+            return config;
         }
 
-        const userId = identity.subject;
+        // For all other configs, use the user index
         const config = await ctx.db
             .query('configurations')
-            .withIndex('by_user', (q) => q.eq('userId', userId))
+            .withIndex('by_user', (q) => q.eq('userId', userId ?? ''))
             .filter((q) => q.eq(q.field('name'), args.name))
             .first();
 

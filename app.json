@@ -3,7 +3,7 @@
     "name": "comandae-mobile",
     "slug": "comandae-mobile",
     "version": "1.0.0",
-    "scheme": "myapp",
+    "scheme": "quiet-alien-52",
     "newArchEnabled": true,
     "web": {
       "bundler": "metro",

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, StyleSheet, ScrollView, Platform, BackHandler } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -67,6 +67,9 @@ export default function Payment() {
     const [isViewModalVisible, setIsViewModalVisible] = useState(false);
     const [viewingSlip, setViewingSlip] = useState<Slip | null>(null);
 
+    // Add ref to track if we've already processed the slipId parameter
+    const hasProcessedSlipId = useRef(false);
+
     const slips = useQuery(api.slips.getSlipsForPayment, {
         isOpen: activeFilter === 'all' ? undefined : activeFilter === 'open',
         searchQuery: searchQuery || undefined,
@@ -113,9 +116,9 @@ export default function Payment() {
         return () => backHandler.remove();
     }, [selectedSlip, viewingSlip]);
 
-    // Auto-select slip if slipId is provided in params
+    // Auto-select slip if slipId is provided in params - FIXED VERSION
     useEffect(() => {
-        if (params.slipId && !selectedSlip) {
+        if (params.slipId && !selectedSlip && !hasProcessedSlipId.current) {
             setActiveFilter('open');
             const slip = slips?.find(s => s._id === params.slipId);
             if (slip) {
@@ -125,9 +128,10 @@ export default function Payment() {
                     total: slip.total,
                     items: slip.items
                 });
+                hasProcessedSlipId.current = true; // Mark as processed
             }
         }
-    }, [params.slipId, slips]);
+    }, [params.slipId, slips, selectedSlip]);
 
     // Add effect to handle loading state
     useEffect(() => {
