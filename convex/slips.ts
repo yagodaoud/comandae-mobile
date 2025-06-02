@@ -347,11 +347,6 @@ export const getTodayOrdersCount = query({
 
 export const getDailyProgress = query({
     handler: async (ctx) => {
-        const identity = await ctx.auth.getUserIdentity();
-        if (!identity) {
-            return null;
-        }
-
         // Get today's start and end timestamps
         const now = new Date();
         const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
