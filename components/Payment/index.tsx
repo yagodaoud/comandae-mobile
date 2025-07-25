@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, StyleSheet, ScrollView, Platform, BackHandler } from 'react-native';
+import { View, StyleSheet, ScrollView, Platform, BackHandler, TouchableOpacity, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Feather } from '@expo/vector-icons';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS } from '@/constants/theme';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
@@ -19,6 +18,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { ActionButtons } from '@/components/ActionButtons';
 import ViewSlipModal from './ViewSlipModal';
 import { LoadingOverlay } from '@/components/ui/LoadingOverlay';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 const paymentMethods = [
     { id: 'cash', name: 'Dinheiro', icon: 'dollar-sign', iconType: 'feather' },
@@ -67,12 +67,16 @@ export default function Payment() {
     const [isViewModalVisible, setIsViewModalVisible] = useState(false);
     const [viewingSlip, setViewingSlip] = useState<Slip | null>(null);
 
+    const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+    const [showDatePicker, setShowDatePicker] = useState(false);
+
     // Add ref to track if we've already processed the slipId parameter
     const hasProcessedSlipId = useRef(false);
 
     const slips = useQuery(api.slips.getSlipsForPayment, {
         isOpen: activeFilter === 'all' ? undefined : activeFilter === 'open',
         searchQuery: searchQuery || undefined,
+        date: activeFilter === 'all' ? selectedDate.toISOString().slice(0, 10) : undefined, // Pass date as YYYY-MM-DD
     });
 
     const products = useQuery(api.products.getProducts) ?? [];
@@ -264,7 +268,8 @@ export default function Payment() {
             <SearchBar
                 searchQuery={searchQuery}
                 onSearchChange={setSearchQuery}
-                onAddPress={() => console.log('Add new comanda')}
+                rightIcon={<MaterialCommunityIcons name="chart-bar" size={22} color="#fff" />}
+                onRightIconPress={() => router.push('/report')}
             />
 
             <FilterChips
@@ -272,6 +277,27 @@ export default function Payment() {
                 onFilterChange={(filter) => setActiveFilter(filter as FilterOption)}
                 filters={[...FILTER_OPTIONS] as any}
             />
+            {/* Show date picker only for 'all' filter */}
+            {activeFilter === 'all' && (
+                <View style={{ marginVertical: 8, alignItems: 'center' }}>
+                    <TouchableOpacity onPress={() => setShowDatePicker(true)} style={{ padding: 8, backgroundColor: COLORS.secondary, borderRadius: 8 }}>
+                        <Text style={{ color: '#fff', fontWeight: 'bold' }}>
+                            {selectedDate.toLocaleDateString()}
+                        </Text>
+                    </TouchableOpacity>
+                    {showDatePicker && (
+                        <DateTimePicker
+                            value={selectedDate}
+                            mode="date"
+                            display="default"
+                            onChange={(event, date) => {
+                                setShowDatePicker(false);
+                                if (date) setSelectedDate(date);
+                            }}
+                        />
+                    )}
+                </View>
+            )}
 
             <ScrollView
                 style={styles.scrollView}

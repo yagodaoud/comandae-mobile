@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, LayoutAnimation, Platform, UIManager } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { COLORS } from '@/constants/theme';
 import { Doc } from '@/convex/_generated/dataModel';
@@ -30,6 +30,11 @@ interface ProductsStepProps {
     onNext: () => void;
 }
 
+// Enable LayoutAnimation on Android
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+    UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
 export default function ProductsStep({
     products,
     categories,
@@ -58,66 +63,99 @@ export default function ProductsStep({
         return acc;
     }, {});
 
+    // State for expanded categories
+    const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
+
+    const toggleCategory = (categoryId: string) => {
+        LayoutAnimation.configureNext(
+            LayoutAnimation.create(
+                300, // duration in ms
+                LayoutAnimation.Types.easeInEaseOut,
+                LayoutAnimation.Properties.opacity
+            )
+        );
+        setExpandedCategories(prev => ({
+            ...prev,
+            [categoryId]: !prev[categoryId],
+        }));
+    };
+
     return (
         <View style={styles.step}>
             <Text style={styles.stepTitle}>Adicionar Produtos</Text>
 
             <View style={styles.productSelector}>
                 <Text style={styles.label}>Produto*</Text>
-                <ScrollView style={styles.productList}>
-                    {Object.entries(productsByCategory).map(([categoryId, { category, products }]) => (
+                {/* Remove outer ScrollView, scroll only inside expanded categories */}
+                <View style={styles.productList}>
+                    {[...Object.entries(productsByCategory)].reverse().map(([categoryId, { category, products }]) => (
                         <View key={categoryId} style={styles.categorySection}>
-                            <Text style={styles.categoryTitle}>{category.name}</Text>
-                            {products.map((product) => (
-                                <TouchableOpacity
-                                    key={product._id}
-                                    style={[
-                                        styles.productOption,
-                                        selectedProduct?._id === product._id && styles.productOptionSelected,
-                                        !product.hasInfiniteStock && product.stock <= 0 && styles.productOptionDisabled,
-                                    ]}
-                                    onPress={() => setSelectedProduct(product)}
-                                    disabled={!product.hasInfiniteStock && product.stock <= 0}
-                                >
-                                    <View style={styles.productInfo}>
-                                        <Text
+                            <TouchableOpacity
+                                style={styles.categoryHeader}
+                                onPress={() => toggleCategory(categoryId)}
+                                activeOpacity={0.7}
+                            >
+                                <Text style={styles.categoryTitle}>{category.name}</Text>
+                                <Feather
+                                    name={expandedCategories[categoryId] ? 'chevron-up' : 'chevron-down'}
+                                    size={20}
+                                    color={COLORS.primary}
+                                />
+                            </TouchableOpacity>
+                            {expandedCategories[categoryId] && (
+                                <ScrollView style={styles.innerProductList} nestedScrollEnabled={true}>
+                                    {products.map((product) => (
+                                        <TouchableOpacity
+                                            key={product._id}
                                             style={[
-                                                styles.productOptionText,
-                                                selectedProduct?._id === product._id && styles.productOptionTextSelected,
-                                                !product.hasInfiniteStock && product.stock <= 0 && styles.productOptionTextDisabled,
+                                                styles.productOption,
+                                                selectedProduct?._id === product._id && styles.productOptionSelected,
+                                                !product.hasInfiniteStock && product.stock <= 0 && styles.productOptionDisabled,
                                             ]}
+                                            onPress={() => setSelectedProduct(product)}
+                                            disabled={!product.hasInfiniteStock && product.stock <= 0}
                                         >
-                                            {product.name}
-                                        </Text>
-                                        <View style={styles.productDetails}>
-                                            {product.notStack && (
+                                            <View style={styles.productInfo}>
                                                 <Text
                                                     style={[
-                                                        styles.productTag,
-                                                        selectedProduct?._id === product._id && styles.productTagSelected,
+                                                        styles.productOptionText,
+                                                        selectedProduct?._id === product._id && styles.productOptionTextSelected,
+                                                        !product.hasInfiniteStock && product.stock <= 0 && styles.productOptionTextDisabled,
                                                     ]}
                                                 >
-                                                    Por Unidade
+                                                    {product.name}
                                                 </Text>
+                                                <View style={styles.productDetails}>
+                                                    {product.notStack && (
+                                                        <Text
+                                                            style={[
+                                                                styles.productTag,
+                                                                selectedProduct?._id === product._id && styles.productTagSelected,
+                                                            ]}
+                                                        >
+                                                            Por Unidade
+                                                        </Text>
+                                                    )}
+                                                    <Text
+                                                        style={[
+                                                            styles.productPrice,
+                                                            selectedProduct?._id === product._id && styles.productPriceSelected,
+                                                        ]}
+                                                    >
+                                                        R$ {product.price.toFixed(2)}
+                                                    </Text>
+                                                </View>
+                                            </View>
+                                            {!product.hasInfiniteStock && product.stock <= 0 && (
+                                                <Text style={styles.outOfStockText}>Sem estoque</Text>
                                             )}
-                                            <Text
-                                                style={[
-                                                    styles.productPrice,
-                                                    selectedProduct?._id === product._id && styles.productPriceSelected,
-                                                ]}
-                                            >
-                                                R$ {product.price.toFixed(2)}
-                                            </Text>
-                                        </View>
-                                    </View>
-                                    {!product.hasInfiniteStock && product.stock <= 0 && (
-                                        <Text style={styles.outOfStockText}>Sem estoque</Text>
-                                    )}
-                                </TouchableOpacity>
-                            ))}
+                                        </TouchableOpacity>
+                                    ))}
+                                </ScrollView>
+                            )}
                         </View>
                     ))}
-                </ScrollView>
+                </View>
             </View>
 
             <View style={styles.quantityInput}>
@@ -241,10 +279,24 @@ const styles = StyleSheet.create({
         marginBottom: 20,
     },
     productList: {
-        maxHeight: 300,
+        // Remove maxHeight here, handled per category
+    },
+    innerProductList: {
+        maxHeight: 200,
+        marginBottom: 8,
     },
     categorySection: {
         marginBottom: 20,
+    },
+    categoryHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 4,
+        paddingVertical: 8,
+        backgroundColor: '#f7f7f7',
+        borderRadius: 6,
+        marginBottom: 4,
     },
     categoryTitle: {
         fontSize: 16,

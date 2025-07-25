@@ -6,11 +6,15 @@ import { COLORS } from '@/constants/theme';
 interface SearchBarProps {
     searchQuery: string;
     onSearchChange: (query: string) => void;
+    rightIcon?: React.ReactNode;
+    onRightIconPress?: () => void;
 }
 
 export const SearchBar: React.FC<SearchBarProps> = ({
     searchQuery,
     onSearchChange,
+    rightIcon,
+    onRightIconPress,
 }) => {
     return (
         <View style={styles.searchContainer}>
@@ -24,6 +28,11 @@ export const SearchBar: React.FC<SearchBarProps> = ({
                     onChangeText={onSearchChange}
                 />
             </View>
+            {rightIcon && (
+                <TouchableOpacity style={styles.addButton} onPress={onRightIconPress}>
+                    {rightIcon}
+                </TouchableOpacity>
+            )}
         </View>
     );
 };

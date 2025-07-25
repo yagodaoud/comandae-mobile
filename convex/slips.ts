@@ -125,9 +125,10 @@ export const getSlipsForPayment = query({
     args: {
         isOpen: v.optional(v.boolean()),
         searchQuery: v.optional(v.string()),
+        date: v.optional(v.string()), // Add date argument
     },
     handler: async (ctx, args) => {
-        const { isOpen, searchQuery } = args;
+        const { isOpen, searchQuery, date } = args;
 
         let slips = await ctx.db
             .query("slips")
@@ -145,6 +146,16 @@ export const getSlipsForPayment = query({
             slips = slips.filter((slip) =>
                 slip.table.toLowerCase().includes(lowerSearchQuery)
             );
+        }
+
+        // Filter by date if provided
+        if (date) {
+            const startOfDay = new Date(date + 'T00:00:00.000Z').getTime();
+            const endOfDay = new Date(date + 'T23:59:59.999Z').getTime();
+            slips = slips.filter((slip) => {
+                const time = slip.isOpen ? slip.lastUpdateTime : (slip.paymentTime ?? slip._creationTime);
+                return time >= startOfDay && time <= endOfDay;
+            });
         }
 
         // Calculate time differences and format time (sorting will be client-side)
@@ -393,6 +404,46 @@ export const getDailyProgress = query({
             yesterdaySlipCount,
             averageTicketToday,
             averageTicketYesterday,
+        };
+    },
+});
+
+export const getReportSummaryByDate = query({
+    args: {
+        date: v.string(), // YYYY-MM-DD
+    },
+    handler: async (ctx, args) => {
+        const { date } = args;
+        const startOfDay = new Date(date + 'T00:00:00.000Z').getTime();
+        const endOfDay = new Date(date + 'T23:59:59.999Z').getTime();
+
+        // Only closed slips with paymentTime in the selected day
+        const slips = await ctx.db
+            .query('slips')
+            .withIndex('by_payment_time', q => q.gte('paymentTime', startOfDay).lte('paymentTime', endOfDay))
+            .filter(q => q.eq(q.field('isOpen'), false))
+            .collect();
+
+        let total = 0;
+        const byType = {
+            cash: 0,
+            card: 0,
+            pix: 0,
+            bitcoin: 0,
+        };
+
+        for (const slip of slips) {
+            const amount = slip.finalTotal || slip.total || 0;
+            total += amount;
+            const method = slip.paymentMethod as 'cash' | 'card' | 'pix' | 'bitcoin';
+            if (method && byType.hasOwnProperty(method)) {
+                byType[method] += amount;
+            }
+        }
+
+        return {
+            total,
+            byType,
         };
     },
 }); 
