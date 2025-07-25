@@ -8,6 +8,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { QRCodeModal } from './QRCodeModal';
 import { BitcoinPriceService } from '@/utils/BitcoinPriceService';
 import { Id } from '@/convex/_generated/dataModel';
+import { parseBRL, formatBRL } from '@/utils/formatBRL';
 
 interface PaymentMethod {
     id: string;
@@ -266,7 +267,7 @@ export const PaymentMethodSelector = ({
                         <View style={styles.changeContainer}>
                             <Text style={styles.changeLabel}>Troco:</Text>
                             <Text style={styles.changeValue}>
-                                R$ {(parseFloat(cashAmount.replace(',', '.')) - parseFloat(grandTotal)).toFixed(2)}
+                                {formatBRL(parseBRL(cashAmount) - parseBRL(grandTotal || '0'))}
                             </Text>
                         </View>
                     )}

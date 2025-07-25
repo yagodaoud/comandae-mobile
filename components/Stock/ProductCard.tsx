@@ -2,6 +2,7 @@ import React from 'react';
 import { TouchableOpacity, View, Text, StyleSheet, Image } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { COLORS } from '@/constants/theme';
+import { formatBRL } from '@/utils/formatBRL';
 
 interface ProductCardProps {
     name: string;
@@ -15,7 +16,7 @@ interface ProductCardProps {
 
 const ProductCard: React.FC<ProductCardProps> = ({ name, category, price, stock, hasInfiniteStock, image, onPress }) => {
     const lowStock = hasInfiniteStock === false && stock < 10;
-
+    const priceNumber = parseFloat(price.replace(',', '.'));
     return (
         <TouchableOpacity style={styles.productCard} onPress={onPress}>
             <View style={styles.productHeader}>
@@ -34,7 +35,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ name, category, price, stock,
                 </View>
             </View>
             <View style={styles.productFooter}>
-                <Text style={styles.productPrice}>R$ {price}</Text>
+                <Text style={styles.productPrice}>{formatBRL(priceNumber)}</Text>
                 <View
                     style={[styles.stockIndicator, { backgroundColor: lowStock ? '#F44336' : '#4CAF50' }]}
                 >

@@ -23,7 +23,7 @@ export const createDish = mutation({
   args: {
     name: v.string(),
     description: v.string(),
-    price: v.number(),
+    price: v.optional(v.number()),
     emoji: v.string(),
     isFavorite: v.boolean(),
     categoryId: v.id("dish_categories"),
@@ -91,7 +91,7 @@ export const updateDish = mutation({
     id: v.id("dishes"),
     name: v.string(),
     description: v.string(),
-    price: v.number(),
+    price: v.optional(v.number()),
     emoji: v.string(),
     isFavorite: v.boolean(),
     categoryId: v.id("dish_categories"),

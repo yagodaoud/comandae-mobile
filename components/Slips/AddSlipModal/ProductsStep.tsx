@@ -3,6 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Layout
 import { Feather } from '@expo/vector-icons';
 import { COLORS } from '@/constants/theme';
 import { Doc } from '@/convex/_generated/dataModel';
+import { formatBRL, parseBRL } from '@/utils/formatBRL';
 
 type Product = Doc<"products">;
 type Category = Doc<"product_categories">;
@@ -142,7 +143,7 @@ export default function ProductsStep({
                                                             selectedProduct?._id === product._id && styles.productPriceSelected,
                                                         ]}
                                                     >
-                                                        R$ {product.price.toFixed(2)}
+                                                        {formatBRL(product.price)}
                                                     </Text>
                                                 </View>
                                             </View>
@@ -200,7 +201,7 @@ export default function ProductsStep({
                                 <View style={styles.itemInfo}>
                                     <Text style={styles.itemName}>{product?.name}</Text>
                                     <Text style={styles.itemDetails}>
-                                        {item.quantity} x R$ {item.customPrice?.toFixed(2) ?? product?.price.toFixed(2)}
+                                        {item.quantity} x {formatBRL(item.customPrice ?? product?.price ?? 0)}
                                     </Text>
                                 </View>
                                 <View style={styles.itemControls}>

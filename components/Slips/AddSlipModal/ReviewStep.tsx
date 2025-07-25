@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { COLORS } from '@/constants/theme';
 import { Doc } from '@/convex/_generated/dataModel';
+import { formatBRL } from '@/utils/formatBRL';
 
 type Product = Doc<"products">;
 
@@ -52,7 +53,7 @@ export default function ReviewStep({
                         <View key={index} style={styles.reviewItem}>
                             <Text style={styles.reviewItemName}>{product?.name}</Text>
                             <Text style={styles.reviewItemDetails}>
-                                {item.quantity} x R$ {item.customPrice?.toFixed(2) ?? product?.price.toFixed(2)}
+                                {item.quantity} x {formatBRL(item.customPrice ?? product?.price ?? 0)}
                             </Text>
                         </View>
                     );
@@ -61,7 +62,7 @@ export default function ReviewStep({
 
             <View style={styles.reviewSection}>
                 <Text style={styles.reviewLabel}>Total</Text>
-                <Text style={styles.reviewTotal}>R$ {total.toFixed(2)}</Text>
+                <Text style={styles.reviewTotal}>{formatBRL(total)}</Text>
             </View>
 
             <View style={styles.stepButtons}>

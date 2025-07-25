@@ -19,6 +19,7 @@ import { ActionButtons } from '@/components/ActionButtons';
 import ViewSlipModal from './ViewSlipModal';
 import { LoadingOverlay } from '@/components/ui/LoadingOverlay';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { parseBRL } from '@/utils/formatBRL';
 
 const paymentMethods = [
     { id: 'cash', name: 'Dinheiro', icon: 'dollar-sign', iconType: 'feather' },
@@ -156,6 +157,21 @@ export default function Payment() {
         }
     }, [slips, activeFilter, searchQuery, isInitialLoad]);
 
+    // Reset hasProcessedSlipId when modal is closed
+    useEffect(() => {
+        if (!selectedSlip) {
+            hasProcessedSlipId.current = false;
+            // Remove slipId param from the URL after closing the modal
+            if (params.slipId) {
+                router.replace({ pathname: '/payment' });
+            }
+            // Reset all selections and inputs
+            setSelectedPaymentMethod('credit');
+            setTipPercentage(0);
+            setCashAmount('');
+        }
+    }, [selectedSlip]);
+
     const handleBackPress = () => {
         if (selectedSlip) {
             setSelectedSlip(null);
@@ -175,7 +191,7 @@ export default function Payment() {
                 id: selectedSlip.id,
                 paymentMethod: selectedPaymentMethod,
                 tipAmount,
-                cashAmount: selectedPaymentMethod === 'cash' ? parseFloat(cashAmount.replace(',', '.')) : undefined,
+                cashAmount: selectedPaymentMethod === 'cash' ? parseBRL(cashAmount) : undefined,
             });
             setSelectedSlip(null);
         } catch (error) {

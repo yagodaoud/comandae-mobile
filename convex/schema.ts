@@ -21,7 +21,7 @@ export default defineSchema({
         _creationTime: v.number(),
         name: v.string(),
         description: v.string(),
-        price: v.number(),
+        price: v.optional(v.number()),
         emoji: v.string(),
         isFavorite: v.boolean(),
         categoryId: v.id("dish_categories"),

@@ -3,6 +3,7 @@ import { View, Text, Modal, TouchableOpacity, StyleSheet, ScrollView } from 'rea
 import { Feather } from '@expo/vector-icons';
 import { COLORS } from '@/constants/theme';
 import { Doc, Id } from '@/convex/_generated/dataModel';
+import { formatBRL } from '@/utils/formatBRL';
 
 type Slip = Doc<"slips">;
 type Product = Doc<"products">;
@@ -38,8 +39,8 @@ export default function ViewSlipModal({ visible, onClose, slip, products }: View
                 id: itemId,
                 name: name,
                 quantity: item.quantity,
-                price: price.toFixed(2).replace('.', ','),
-                total: total.toFixed(2).replace('.', ','),
+                price: formatBRL(price),
+                total: formatBRL(total),
             };
         });
     };
@@ -77,18 +78,18 @@ export default function ViewSlipModal({ visible, onClose, slip, products }: View
                         <Text style={styles.sectionTitle}>Resumo:</Text>
                         <View style={styles.summaryRow}>
                             <Text style={styles.summaryLabel}>Subtotal:</Text>
-                            <Text style={styles.summaryValue}>R$ {slip.total.toFixed(2).replace('.', ',')}</Text>
+                            <Text style={styles.summaryValue}>{formatBRL(slip.total)}</Text>
                         </View>
                         {slip.tipAmount !== undefined && ( // Only show tip if it exists
                             <View style={styles.summaryRow}>
                                 <Text style={styles.summaryLabel}>Gorjeta:</Text>
-                                <Text style={styles.summaryValue}>R$ {slip.tipAmount.toFixed(2).replace('.', ',')}</Text>
+                                <Text style={styles.summaryValue}>{formatBRL(slip.tipAmount)}</Text>
                             </View>
                         )}
                         {slip.finalTotal !== undefined && ( // Show final total if payment was processed
                             <View style={styles.summaryRow}>
                                 <Text style={styles.summaryLabel}>Total Final:</Text>
-                                <Text style={[styles.summaryValue, styles.finalTotalValue]}>R$ {slip.finalTotal.toFixed(2).replace('.', ',')}</Text>
+                                <Text style={[styles.summaryValue, styles.finalTotalValue]}>{formatBRL(slip.finalTotal)}</Text>
                             </View>
                         )}
                     </View>
@@ -104,7 +105,7 @@ export default function ViewSlipModal({ visible, onClose, slip, products }: View
                             {typeof slip.cashAmount === 'number' && !isNaN(slip.cashAmount) && (
                                 <View style={styles.detailRow}>
                                     <Text style={styles.detailLabel}>Valor Recebido:</Text>
-                                    <Text style={styles.detailValue}>R$ {slip.cashAmount.toFixed(2).replace('.', ',')}</Text>
+                                    <Text style={styles.detailValue}>{formatBRL(slip.cashAmount)}</Text>
                                 </View>
                             )}
                             {slip.paymentTime !== undefined && ( // Show payment time if available

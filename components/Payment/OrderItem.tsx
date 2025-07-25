@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { formatBRL } from '@/utils/formatBRL';
 
 interface OrderItemProps {
     name: string;
@@ -18,9 +19,9 @@ export const OrderItem: React.FC<OrderItemProps> = ({
         <View style={styles.orderItem}>
             <View style={styles.orderItemDetails}>
                 <Text style={styles.orderItemName}>{name}</Text>
-                <Text style={styles.orderItemQuantity}>{quantity}x R$ {price}</Text>
+                <Text style={styles.orderItemQuantity}>{quantity}x {formatBRL(Number(price))}</Text>
             </View>
-            <Text style={styles.orderItemTotal}>R$ {total}</Text>
+            <Text style={styles.orderItemTotal}>{formatBRL(Number(total))}</Text>
         </View>
     );
 };

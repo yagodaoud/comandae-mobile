@@ -24,7 +24,7 @@ export const useDishForm = (initialDish: DishData | null = null) => {
             setName(initialDish.name || '');
             setDescription(initialDish.description || '');
             setPrice(typeof initialDish.price === 'number'
-                ? initialDish.price.toFixed(2).replace('.', ',')
+                ? initialDish.price?.toFixed(2).replace('.', ',')
                 : initialDish.price?.toString() || '');
             setSelectedEmoji(initialDish.emoji || '🍕');
             setSelectedCategory(initialDish.categoryId || null);
@@ -51,9 +51,7 @@ export const useDishForm = (initialDish: DishData | null = null) => {
             newErrors.name = 'Nome é obrigatório';
         }
 
-        if (!price) {
-            newErrors.price = 'Preço é obrigatório';
-        } else {
+        if (price) {
             const priceValue = parseFloat(price.toString().replace(',', '.'));
             if (isNaN(priceValue)) {
                 newErrors.price = 'Preço inválido';
@@ -69,12 +67,14 @@ export const useDishForm = (initialDish: DishData | null = null) => {
     };
 
     const getFormData = () => {
-        const priceNumber = parseFloat(price.toString().replace(',', '.'));
-
+        let priceNumber: number | undefined = undefined;
+        if (price) {
+            priceNumber = parseFloat(price.toString().replace(',', '.'));
+        }
         return {
             name,
             description,
-            price: priceNumber,
+            ...(priceNumber !== undefined && !isNaN(priceNumber) ? { price: priceNumber } : {}),
             emoji: selectedEmoji,
             categoryId: selectedCategory,
             isFavorite,

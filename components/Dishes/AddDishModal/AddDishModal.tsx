@@ -145,8 +145,7 @@ export default function AddDishModal({
                         onChangeText={setPrice}
                         placeholder="Ex: 58,90"
                         keyboardType="decimal-pad"
-                        required
-                        error={errors.price}
+                        error={price ? errors.price : undefined}
                     />
 
                     <CategorySelector

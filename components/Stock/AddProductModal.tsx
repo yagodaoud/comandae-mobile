@@ -5,6 +5,7 @@ import { COLORS } from '@/constants/theme';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Id, Doc } from '@/convex/_generated/dataModel';
+import { parseBRL, formatBRL } from '@/utils/formatBRL';
 
 type Category = Doc<"product_categories">;
 type Product = Doc<"products">;
@@ -43,7 +44,7 @@ export default function AddProductModal({
             if (editingProduct) {
                 setName(editingProduct.name);
                 setDescription(editingProduct.description);
-                setPrice(editingProduct.price.toString());
+                setPrice(formatBRL(editingProduct.price));
                 setStock(editingProduct.stock.toString());
                 setImage(editingProduct.image);
                 setSelectedCategory(editingProduct.categoryId);
@@ -70,7 +71,7 @@ export default function AddProductModal({
             return;
         }
 
-        const priceNumber = parseFloat(price.replace(',', '.'));
+        const priceNumber = parseBRL(price);
         if (isNaN(priceNumber)) {
             alert('Preço inválido');
             return;

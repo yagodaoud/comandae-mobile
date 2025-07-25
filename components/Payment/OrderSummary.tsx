@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, FlatList, StyleSheet } from 'react-native';
 import { OrderItem } from './OrderItem';
 import { COLORS } from '@/constants/theme';
+import { formatBRL } from '@/utils/formatBRL';
 
 interface OrderItem {
     id: string;
@@ -51,18 +52,18 @@ export const OrderSummary: React.FC<OrderSummaryProps> = ({
 
             <View style={styles.totalRow}>
                 <Text style={styles.totalLabel}>Subtotal</Text>
-                <Text style={styles.totalValue}>R$ {orderData.subtotal}</Text>
+                <Text style={styles.totalValue}>{formatBRL(Number(orderData.subtotal))}</Text>
             </View>
             <View style={styles.totalRow}>
                 <Text style={styles.totalLabel}>Gorjeta ({tipPercentage}%)</Text>
-                <Text style={styles.totalValue}>R$ {tipAmount}</Text>
+                <Text style={styles.totalValue}>{formatBRL(Number(tipAmount))}</Text>
             </View>
 
             <View style={styles.divider} />
 
             <View style={styles.grandTotalRow}>
                 <Text style={styles.grandTotalLabel}>Total</Text>
-                <Text style={styles.grandTotalValue}>R$ {grandTotal}</Text>
+                <Text style={styles.grandTotalValue}>{formatBRL(Number(grandTotal))}</Text>
             </View>
         </View>
     );
