@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, Modal, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { COLORS } from '@/constants/theme';
@@ -34,6 +34,7 @@ export default function AddSlipModal({
     onSlipAdded,
     editingSlip,
 }: AddSlipModalProps) {
+    const scrollViewRef = useRef<ScrollView>(null);
     const [currentStep, setCurrentStep] = useState<Step>('table');
     const [table, setTable] = useState('');
     const [items, setItems] = useState<SlipItem[]>([]);
@@ -51,6 +52,20 @@ export default function AddSlipModal({
     }) ?? [];
     const createSlip = useMutation(api.slips.createSlip);
     const updateSlipItems = useMutation(api.slips.updateSlipItems);
+
+    // Auto-scroll to quantity input when product is selected
+    useEffect(() => {
+        if (selectedProduct && scrollViewRef.current) {
+            // Small delay to ensure the UI has updated
+            setTimeout(() => {
+                scrollViewRef.current?.scrollToEnd({ animated: true });
+            }, 100);
+        }
+    }, [selectedProduct]);
+
+    const handleProductSelection = (product: Product | null) => {
+        setSelectedProduct(product);
+    };
 
     // Reset form when modal opens/closes
     useEffect(() => {
@@ -248,7 +263,7 @@ export default function AddSlipModal({
                     totalSteps={3}
                 />
 
-                <ScrollView style={styles.content}>
+                <ScrollView ref={scrollViewRef} style={styles.content}>
                     {currentStep === 'table' && (
                         <TableStep
                             table={table}
@@ -262,7 +277,7 @@ export default function AddSlipModal({
                             products={products}
                             categories={categories}
                             selectedProduct={selectedProduct}
-                            setSelectedProduct={setSelectedProduct}
+                            setSelectedProduct={handleProductSelection}
                             quantity={quantity}
                             setQuantity={setQuantity}
                             customPrice={customPrice}
