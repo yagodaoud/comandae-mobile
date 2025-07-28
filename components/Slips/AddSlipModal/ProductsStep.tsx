@@ -54,7 +54,9 @@ export default function ProductsStep({
 }: ProductsStepProps) {
     // Group products by category
     const productsByCategory = categories.reduce((acc: Record<string, { category: Category; products: Product[] }>, category) => {
-        const categoryProducts = products.filter(p => p.categoryId === category._id);
+        const categoryProducts = products
+            .filter(p => p.categoryId === category._id)
+            .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })); // case-insensitive sort
         if (categoryProducts.length > 0) {
             acc[category._id] = {
                 category,

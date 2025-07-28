@@ -75,6 +75,20 @@ export default function AddSlipModal({
         }
     }, [visible, editingSlip]);
 
+    // Force clear all state when modal closes
+    useEffect(() => {
+        if (!visible) {
+            setCurrentStep('table');
+            setTable('');
+            setItems([]);
+            setSelectedProduct(null);
+            setQuantity('');
+            setCustomPrice('');
+            setIsSubmitting(false);
+            setTableError('');
+        }
+    }, [visible]);
+
     const handleNextStep = () => {
         if (!table) {
             setTableError('Por favor, insira um número de comanda');

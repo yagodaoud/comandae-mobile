@@ -446,4 +446,13 @@ export const getReportSummaryByDate = query({
             byType,
         };
     },
+});
+
+export const getSlipById = query({
+    args: { id: v.id("slips") },
+    handler: async (ctx, args) => {
+        const slip = await ctx.db.get(args.id);
+        if (!slip) return null;
+        return slip;
+    },
 }); 
