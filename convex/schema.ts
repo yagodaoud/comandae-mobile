@@ -92,6 +92,7 @@ export default defineSchema({
         lastUpdateTime: v.number(),
         paymentMethod: v.optional(v.string()),
         tipAmount: v.optional(v.number()),
+        extraAmount: v.optional(v.number()),
         cashAmount: v.optional(v.number()),
         finalTotal: v.optional(v.number()),
         paymentTime: v.optional(v.number()),

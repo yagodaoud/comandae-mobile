@@ -5,6 +5,7 @@ import { COLORS } from '@/constants/theme';
 import QRCode from 'react-native-qrcode-svg';
 import { BitcoinQRGenerator } from '@/utils/BitcoinQRGenerator';
 import { PixQRGenerator } from '@/utils/PixQRGenerator';
+import { formatBRL } from '@/utils/formatBRL';
 import { Id } from '@/convex/_generated/dataModel';
 
 interface PixKey {
@@ -104,7 +105,7 @@ export const QRCodeModal = ({
                         />
                     </View>
                     <View style={styles.amountContainer}>
-                        <Text style={styles.amount}>R$ {safeAmount.toFixed(2)}</Text>
+                        <Text style={styles.amount}>{formatBRL(safeAmount)}</Text>
                     </View>
                 </View>
             );
@@ -176,7 +177,7 @@ export const QRCodeModal = ({
                         />
                     </View>
                     <View style={styles.amountContainer}>
-                        <Text style={styles.amount}>R$ {safeAmount.toFixed(2)}</Text>
+                        <Text style={styles.amount}>{formatBRL(safeAmount)}</Text>
                         <Text style={styles.btcAmount}>
                             {btcAmount.toFixed(8)} BTC
                         </Text>

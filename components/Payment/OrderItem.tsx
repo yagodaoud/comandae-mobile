@@ -19,9 +19,9 @@ export const OrderItem: React.FC<OrderItemProps> = ({
         <View style={styles.orderItem}>
             <View style={styles.orderItemDetails}>
                 <Text style={styles.orderItemName}>{name}</Text>
-                <Text style={styles.orderItemQuantity}>{quantity}x {formatBRL(Number(price))}</Text>
+                <Text style={styles.orderItemQuantity}>{quantity}x {price}</Text>
             </View>
-            <Text style={styles.orderItemTotal}>{formatBRL(Number(total))}</Text>
+            <Text style={styles.orderItemTotal}>{total}</Text>
         </View>
     );
 };

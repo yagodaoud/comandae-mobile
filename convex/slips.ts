@@ -188,21 +188,23 @@ export const updateSlipPayment = mutation({
         id: v.id("slips"),
         paymentMethod: v.string(),
         tipAmount: v.number(),
+        extraAmount: v.optional(v.number()),
         cashAmount: v.optional(v.number()),
     },
     handler: async (ctx, args) => {
-        const { id, paymentMethod, tipAmount, cashAmount } = args;
+        const { id, paymentMethod, tipAmount, extraAmount, cashAmount } = args;
 
-        // Calculate final total with tip
+        // Calculate final total with tip and extra amount
         const slip = await ctx.db.get(id);
         if (!slip) throw new Error("Slip not found");
 
-        const finalTotal = slip.total + tipAmount;
+        const finalTotal = slip.total + tipAmount + (extraAmount || 0);
 
         await ctx.db.patch(id, {
             isOpen: false,
             paymentMethod,
             tipAmount,
+            extraAmount,
             cashAmount,
             finalTotal,
             paymentTime: Date.now(),

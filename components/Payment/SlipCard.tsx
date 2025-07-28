@@ -1,11 +1,12 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { COLORS } from '@/constants/theme';
+import { formatBRL } from '@/utils/formatBRL';
 
 interface SlipCardProps {
     table: string;
     items: number;
-    total: string;
+    total: number;
     time: string;
     status: 'open' | 'closed';
     onPress: () => void;
@@ -44,7 +45,7 @@ export const SlipCard: React.FC<SlipCardProps> = ({
                     </View>
                 </View>
             </View>
-            <Text style={styles.slipTotal}>Total: R$ {total}</Text>
+            <Text style={styles.slipTotal}>Total: {formatBRL(total)}</Text>
         </TouchableOpacity>
     );
 };

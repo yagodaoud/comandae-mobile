@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, StyleSheet, ScrollView, Platform, BackHandler, TouchableOpacity, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS } from '@/constants/theme';
 import { useQuery, useMutation } from 'convex/react';
@@ -12,6 +13,7 @@ import { OrderSummary } from './OrderSummary';
 import { PaymentMethodSelector } from './PaymentMethodSelector';
 import { SlipCard } from './SlipCard';
 import { TipSelector } from './TipSelector';
+import { ExtraAmountInput } from './ExtraAmountInput';
 import { SearchBar } from '@/components/SearchBar';
 import { FilterChips } from '@/components/FilterChips';
 import { EmptyState } from '@/components/EmptyState';
@@ -19,7 +21,7 @@ import { ActionButtons } from '@/components/ActionButtons';
 import ViewSlipModal from './ViewSlipModal';
 import { LoadingOverlay } from '@/components/ui/LoadingOverlay';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { parseBRL } from '@/utils/formatBRL';
+import { parseBRL, formatBRL } from '@/utils/formatBRL';
 
 const paymentMethods = [
     { id: 'cash', name: 'Dinheiro', icon: 'dollar-sign', iconType: 'feather' },
@@ -58,6 +60,7 @@ export default function Payment() {
     const insets = useSafeAreaInsets();
     const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('credit');
     const [tipPercentage, setTipPercentage] = useState(0);
+    const [extraAmount, setExtraAmount] = useState('');
     const [cashAmount, setCashAmount] = useState('');
     const [selectedSlip, setSelectedSlip] = useState<{ id: Id<"slips">; table: string; total: number; items: any[] } | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
@@ -84,8 +87,8 @@ export default function Payment() {
 
     const updatePayment = useMutation(api.slips.updateSlipPayment);
 
-    const tipAmount = selectedSlip ? (selectedSlip.total * (tipPercentage / 100)) : 0;
-    const grandTotal = selectedSlip ? (selectedSlip.total + tipAmount) : 0;
+    const extraAmountNum = extraAmount ? parseBRL(extraAmount) : 0;
+    const grandTotal = selectedSlip ? (selectedSlip.total + extraAmountNum) : 0;
 
     const formatOrderItems = (items: SlipItem[], products: any[]): FormattedOrderItem[] => {
         return items.map(item => {
@@ -99,8 +102,8 @@ export default function Payment() {
                 id: item.productId,
                 name: product.name,
                 quantity: item.quantity,
-                price: price.toFixed(2),
-                total: total.toFixed(2),
+                price: formatBRL(price),
+                total: formatBRL(total),
             };
         }).filter(Boolean) as FormattedOrderItem[];
     };
@@ -172,9 +175,29 @@ export default function Payment() {
         }
     }, [selectedSlip]);
 
+    // Close payment modal when screen loses focus
+    useFocusEffect(
+        useCallback(() => {
+            return () => {
+                // This runs when the screen loses focus
+                if (selectedSlip) {
+                    setSelectedSlip(null);
+                    setExtraAmount('');
+                    setCashAmount('');
+                }
+                if (viewingSlip) {
+                    setViewingSlip(null);
+                    setIsViewModalVisible(false);
+                }
+            };
+        }, [selectedSlip, viewingSlip])
+    );
+
     const handleBackPress = () => {
         if (selectedSlip) {
             setSelectedSlip(null);
+            setExtraAmount('');
+            setCashAmount('');
         } else if (viewingSlip) {
             setViewingSlip(null);
             setIsViewModalVisible(false);
@@ -190,10 +213,13 @@ export default function Payment() {
             await updatePayment({
                 id: selectedSlip.id,
                 paymentMethod: selectedPaymentMethod,
-                tipAmount,
+                tipAmount: 0,
+                extraAmount: extraAmountNum,
                 cashAmount: selectedPaymentMethod === 'cash' ? parseBRL(cashAmount) : undefined,
             });
             setSelectedSlip(null);
+            setExtraAmount('');
+            setCashAmount('');
         } catch (error) {
             console.error('Error processing payment:', error);
             // TODO: Show error message to user
@@ -234,16 +260,15 @@ export default function Payment() {
                                 tax: '0.00',
                                 total: selectedSlip.total.toFixed(2),
                             }}
-                            tipPercentage={tipPercentage}
-                            tipAmount={tipAmount.toFixed(2)}
+                            extraAmount={extraAmountNum.toFixed(2)}
                             grandTotal={grandTotal.toFixed(2)}
                         />
                     </View>
 
                     <View style={styles.section}>
-                        <TipSelector
-                            tipPercentage={tipPercentage}
-                            setTipPercentage={setTipPercentage}
+                        <ExtraAmountInput
+                            extraAmount={extraAmount}
+                            setExtraAmount={setExtraAmount}
                         />
                     </View>
 
@@ -263,7 +288,11 @@ export default function Payment() {
                         <ActionButtons
                             cancelText="Voltar"
                             confirmText="Finalizar Pagamento"
-                            onCancel={() => setSelectedSlip(null)}
+                            onCancel={() => {
+                                setSelectedSlip(null);
+                                setExtraAmount('');
+                                setCashAmount('');
+                            }}
                             onConfirm={handlePayment}
                         />
                     </View>
@@ -360,7 +389,7 @@ export default function Payment() {
                                         key={slip._id}
                                         table={slip.table}
                                         items={slip.items.length}
-                                        total={slip.total.toFixed(2)}
+                                        total={slip.isOpen ? slip.total : (slip.finalTotal || slip.total)}
                                         time={slip.time}
                                         status={slip.isOpen ? 'open' : 'closed'}
                                         onPress={() => {

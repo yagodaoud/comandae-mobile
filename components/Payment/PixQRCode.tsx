@@ -3,6 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { COLORS } from '@/constants/theme';
 import { PixQRGenerator } from '@/utils/PixQRGenerator';
+import { formatBRL } from '@/utils/formatBRL';
 
 interface PixQRCodeProps {
     cnpj: string;
@@ -25,7 +26,7 @@ export const PixQRCode = ({ cnpj, amount, companyName, size = 350 }: PixQRCodePr
                     color="black"
                 />
             </View>
-            <Text style={styles.amount}>R$ {amount.toFixed(2)}</Text>
+            <Text style={styles.amount}>{formatBRL(amount)}</Text>
         </View>
     );
 };

@@ -69,7 +69,7 @@ export default function ViewSlipModal({ visible, onClose, slip, products }: View
                             <View key={item.id} style={styles.itemRow}>
                                 <Text style={styles.itemQuantity}>{item.quantity}x</Text>
                                 <Text style={styles.itemName}>{item.name}</Text>
-                                <Text style={styles.itemTotal}>R$ {item.total}</Text>
+                                <Text style={styles.itemTotal}>{item.total}</Text>
                             </View>
                         ))}
                     </View>
@@ -84,6 +84,12 @@ export default function ViewSlipModal({ visible, onClose, slip, products }: View
                             <View style={styles.summaryRow}>
                                 <Text style={styles.summaryLabel}>Gorjeta:</Text>
                                 <Text style={styles.summaryValue}>{formatBRL(slip.tipAmount)}</Text>
+                            </View>
+                        )}
+                        {slip.extraAmount !== undefined && slip.extraAmount > 0 && ( // Only show extra amount if it exists and is greater than 0
+                            <View style={styles.summaryRow}>
+                                <Text style={styles.summaryLabel}>Valor Extra:</Text>
+                                <Text style={styles.summaryValue}>{formatBRL(slip.extraAmount)}</Text>
                             </View>
                         )}
                         {slip.finalTotal !== undefined && ( // Show final total if payment was processed

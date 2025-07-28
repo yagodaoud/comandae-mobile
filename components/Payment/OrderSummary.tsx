@@ -21,15 +21,13 @@ interface OrderSummaryProps {
         tax: string;
         total: string;
     };
-    tipPercentage: number;
-    tipAmount: string;
+    extraAmount: string;
     grandTotal: string;
 }
 
 export const OrderSummary: React.FC<OrderSummaryProps> = ({
     orderData,
-    tipPercentage,
-    tipAmount,
+    extraAmount,
     grandTotal
 }) => {
     return (
@@ -54,10 +52,12 @@ export const OrderSummary: React.FC<OrderSummaryProps> = ({
                 <Text style={styles.totalLabel}>Subtotal</Text>
                 <Text style={styles.totalValue}>{formatBRL(Number(orderData.subtotal))}</Text>
             </View>
-            <View style={styles.totalRow}>
-                <Text style={styles.totalLabel}>Gorjeta ({tipPercentage}%)</Text>
-                <Text style={styles.totalValue}>{formatBRL(Number(tipAmount))}</Text>
-            </View>
+            {Number(extraAmount) > 0 && (
+                <View style={styles.totalRow}>
+                    <Text style={styles.totalLabel}>Valor Extra</Text>
+                    <Text style={styles.totalValue}>{formatBRL(Number(extraAmount))}</Text>
+                </View>
+            )}
 
             <View style={styles.divider} />
 
