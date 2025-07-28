@@ -10,6 +10,7 @@ import TransparentHeader from '@/components/TransparentHeader';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { LoadingOverlay } from '@/components/ui/LoadingOverlay';
+import { format } from 'date-fns';
 
 import ImageUploadSection from './ImageUploadSection';
 import ProcessButton from './ProcessButton';
@@ -290,6 +291,8 @@ export default function MenuGenerationScreen() {
         router.back();
     };
 
+    const setDailyMenu = useMutation(api.menu.setDailyMenu);
+
     return (
         <KeyboardAvoidingView
             behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -353,10 +356,36 @@ export default function MenuGenerationScreen() {
                     )}
 
                     {dishes && state.selectedDishIds.size > 0 && state.generatedMenu && (
-                        <GeneratedMenuSection
-                            selectedDishes={dishes.filter(dish => state.selectedDishIds.has(dish._id))}
-                            generatedMenu={state.generatedMenu}
-                        />
+                        <>
+                            <GeneratedMenuSection
+                                selectedDishes={dishes.filter(dish => state.selectedDishIds.has(dish._id))}
+                                generatedMenu={state.generatedMenu}
+                            />
+                            <TouchableOpacity
+                                style={{
+                                    backgroundColor: COLORS.secondary,
+                                    borderRadius: 8,
+                                    padding: 16,
+                                    alignItems: 'center',
+                                    marginTop: 12,
+                                    marginBottom: 12,
+                                }}
+                                onPress={async () => {
+                                    try {
+                                        const today = format(new Date(), 'yyyy-MM-dd');
+                                        await setDailyMenu({
+                                            date: today,
+                                            dishIds: Array.from(state.selectedDishIds),
+                                        });
+                                        Alert.alert('Menu do Dia', 'Menu do dia salvo com sucesso!');
+                                    } catch (err) {
+                                        Alert.alert('Erro', 'Não foi possível salvar o menu do dia.');
+                                    }
+                                }}
+                            >
+                                <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>Adicionar como Menu do Dia</Text>
+                            </TouchableOpacity>
+                        </>
                     )}
 
                     <View style={styles.editorContainer}>

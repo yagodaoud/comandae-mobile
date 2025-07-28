@@ -97,21 +97,35 @@ export default function TabLayout() {
                 }}
             />
             <Tabs.Screen
-                name='slips'
-                options={{
-                    tabBarLabel: 'Comandas',
-                }}
-            />
-            <Tabs.Screen
                 name='dishes'
                 options={{
                     tabBarLabel: 'Cardápio',
                 }}
             />
             <Tabs.Screen
+                name='slips'
+                options={{
+                    tabBarLabel: 'Comandas',
+                }}
+            />
+
+            <Tabs.Screen
+                name='orders'
+                options={{
+                    tabBarLabel: 'Marmitex',
+                    tabBarIcon: ({ color, size, focused }) => (
+                        <TabBarIcon>
+                            <MaterialCommunityIcons name="food" size={size} color={color} />
+                            {focused && <View style={styles.activeIndicator} />}
+                        </TabBarIcon>
+                    ),
+                }}
+            />
+
+            <Tabs.Screen
                 name='payment'
                 options={{
-                    tabBarLabel: 'Pagamento',
+                    tabBarLabel: 'Checkout',
                 }}
             />
         </Tabs>

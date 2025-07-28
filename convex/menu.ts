@@ -186,3 +186,148 @@ export const upsertFooter = mutation({
     }
   },
 });
+
+export const setDailyMenu = mutation({
+  args: {
+    date: v.string(), // YYYY-MM-DD
+    dishIds: v.array(v.id("dishes")),
+  },
+  handler: async (ctx, args) => {
+    // Remove any existing menu for the date
+    const existing = await ctx.db.query("daily_menus").filter(q => q.eq(q.field("date"), args.date)).first();
+    if (existing) {
+      await ctx.db.patch(existing._id, { dishIds: args.dishIds });
+      return existing._id;
+    } else {
+      return await ctx.db.insert("daily_menus", { date: args.date, dishIds: args.dishIds });
+    }
+  },
+});
+
+export const getDailyMenu = query({
+  args: {
+    date: v.string(),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db.query("daily_menus").filter(q => q.eq(q.field("date"), args.date)).first();
+  },
+});
+
+// Daily menu dish status logic
+export const addDailyMenuDish = mutation({
+  args: {
+    date: v.string(),
+    dishId: v.id("dishes"),
+    status: v.union(v.literal("active"), v.literal("waiting")),
+    waitMinutes: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db.insert("daily_menu_dishes", args);
+  },
+});
+
+export const updateDailyMenuDishStatus = mutation({
+  args: {
+    id: v.id("daily_menu_dishes"),
+    status: v.union(v.literal("active"), v.literal("waiting")),
+    waitMinutes: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db.patch(args.id, {
+      status: args.status,
+      waitMinutes: args.waitMinutes,
+    });
+  },
+});
+
+export const getDailyMenuDishes = query({
+  args: { date: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db.query("daily_menu_dishes").filter(q => q.eq(q.field("date"), args.date)).collect();
+  },
+});
+
+// Takeaway orders logic
+export const createTakeawayOrder = mutation({
+  args: {
+    customerName: v.string(),
+    marmitexList: v.array(v.object({
+      sizeProductId: v.id("products"),
+      dishSelections: v.array(v.object({
+        categoryId: v.id("dish_categories"),
+        dishIds: v.array(v.id("dishes")),
+      })),
+      observation: v.optional(v.string()),
+      extraPrice: v.optional(v.number()),
+    })),
+    otherProducts: v.array(v.object({
+      productId: v.id("products"),
+      quantity: v.number(),
+    })),
+    generalObservation: v.optional(v.string()),
+    paymentInfo: v.any(),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    return await ctx.db.insert("takeaway_orders", {
+      ...args,
+      status: "pending",
+      createdAt: now,
+      updatedAt: now,
+    });
+  },
+});
+
+export const updateTakeawayOrder = mutation({
+  args: {
+    id: v.id("takeaway_orders"),
+    update: v.object({
+      customerName: v.optional(v.string()),
+      marmitexList: v.optional(v.array(v.object({
+        sizeProductId: v.id("products"),
+        dishSelections: v.array(v.object({
+          categoryId: v.id("dish_categories"),
+          dishIds: v.array(v.id("dishes")),
+        })),
+        observation: v.optional(v.string()),
+        extraPrice: v.optional(v.number()),
+      }))),
+      otherProducts: v.optional(v.array(v.object({
+        productId: v.id("products"),
+        quantity: v.number(),
+      }))),
+      generalObservation: v.optional(v.string()),
+      paymentInfo: v.optional(v.any()),
+    }),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db.patch(args.id, {
+      ...args.update,
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+export const getTakeawayOrders = query({
+  args: { status: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    let q = ctx.db.query("takeaway_orders");
+    if (args.status) {
+      q = q.filter(qb => qb.eq(qb.field("status"), args.status));
+    }
+    return await q.collect();
+  },
+});
+
+export const updateOrderStatus = mutation({
+  args: {
+    id: v.id("takeaway_orders"),
+    status: v.string(),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db.patch(args.id, {
+      status: args.status,
+      updatedAt: Date.now(),
+    });
+  },
+});

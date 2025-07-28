@@ -129,4 +129,38 @@ export default defineSchema({
         createdAt: v.number(),
         updatedAt: v.number(),
     }).index("by_user", ["userId"]),
+
+    daily_menus: defineTable({
+        date: v.string(), // YYYY-MM-DD
+        dishIds: v.array(v.id("dishes")),
+    }),
+
+    daily_menu_dishes: defineTable({
+        date: v.string(), // YYYY-MM-DD
+        dishId: v.id("dishes"),
+        status: v.union(v.literal("active"), v.literal("waiting")),
+        waitMinutes: v.optional(v.number()),
+    }),
+
+    takeaway_orders: defineTable({
+        customerName: v.string(),
+        marmitexList: v.array(v.object({
+            sizeProductId: v.id("products"),
+            dishSelections: v.array(v.object({
+                categoryId: v.id("dish_categories"),
+                dishIds: v.array(v.id("dishes")),
+            })),
+            observation: v.optional(v.string()),
+            extraPrice: v.optional(v.number()),
+        })),
+        otherProducts: v.array(v.object({
+            productId: v.id("products"),
+            quantity: v.number(),
+        })),
+        generalObservation: v.optional(v.string()),
+        status: v.string(), // 'pending' | 'in_progress' | 'waiting_for_dish' | 'finished' | 'canceled'
+        createdAt: v.number(),
+        updatedAt: v.number(),
+        paymentInfo: v.any(), // required at creation
+    }),
 });
