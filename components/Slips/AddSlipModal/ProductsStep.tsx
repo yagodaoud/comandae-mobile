@@ -172,18 +172,17 @@ export default function ProductsStep({
                 />
             </View>
 
-            {selectedProduct?.hasCustomPrice && (
-                <View style={styles.customPriceInput}>
-                    <Text style={styles.label}>Preço Personalizado</Text>
-                    <TextInput
-                        style={styles.input}
-                        value={customPrice}
-                        onChangeText={setCustomPrice}
-                        placeholder="0,00"
-                        keyboardType="decimal-pad"
-                    />
-                </View>
-            )}
+            <View style={styles.customPriceInput}>
+                <Text style={styles.label}>Preço Personalizado</Text>
+                <TextInput
+                    style={styles.input}
+                    value={customPrice}
+                    onChangeText={setCustomPrice}
+                    placeholder="0,00"
+                    keyboardType="decimal-pad"
+                    editable={!!selectedProduct?.hasCustomPrice}
+                />
+            </View>
 
             <TouchableOpacity
                 style={[styles.addButton, (!selectedProduct || !quantity) && styles.addButtonDisabled]}
@@ -198,13 +197,27 @@ export default function ProductsStep({
                     <Text style={styles.label}>Itens Adicionados</Text>
                     {items.map((item, index) => {
                         const product = products.find(p => p._id === item.productId);
+                        const isNotStack = !!product?.notStack;
+                        const unitPrice = item.customPrice ?? product?.price ?? 0;
+                        const total = item.quantity * unitPrice;
                         return (
                             <View key={index} style={styles.itemRow}>
                                 <View style={styles.itemInfo}>
                                     <Text style={styles.itemName}>{product?.name}</Text>
-                                    <Text style={styles.itemDetails}>
-                                        {item.quantity} x {formatBRL(item.customPrice ?? product?.price ?? 0)}
-                                    </Text>
+                                    {isNotStack ? (
+                                        <View style={styles.notStackContainer}>
+                                            <Text style={styles.itemDetails}>
+                                                {item.quantity} x {formatBRL(unitPrice)}
+                                            </Text>
+                                            <Text style={styles.itemTotal}>
+                                                {formatBRL(total)}
+                                            </Text>
+                                        </View>
+                                    ) : (
+                                        <Text style={styles.itemDetails}>
+                                            {formatBRL(unitPrice)}
+                                        </Text>
+                                    )}
                                 </View>
                                 <View style={styles.itemControls}>
                                     <TouchableOpacity
@@ -460,5 +473,16 @@ const styles = StyleSheet.create({
     productTagSelected: {
         color: '#fff',
         backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    },
+    notStackContainer: {
+        flexDirection: 'row',
+        justifyContent: 'flex-start',
+        alignItems: 'center',
+    },
+    itemTotal: {
+        fontWeight: 'bold',
+        color: COLORS.primary,
+        fontSize: 16,
+        marginLeft: 25,
     },
 }); 

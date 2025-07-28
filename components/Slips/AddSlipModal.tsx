@@ -163,7 +163,7 @@ export default function AddSlipModal({
 
     const handleUpdateQuantity = (index: number, delta: number) => {
         const updatedItems = [...items];
-        const newQuantity = updatedItems[index].quantity + delta;
+        const newQuantity = Math.round((updatedItems[index].quantity + delta) * 1000) / 1000;
 
         if (newQuantity <= 0) {
             handleRemoveItem(index);
