@@ -164,4 +164,17 @@ export default defineSchema({
         updatedAt: v.number(),
         paymentInfo: v.any(), // required at creation
     }),
+
+    avulsos: defineTable({
+        description: v.optional(v.string()),
+        total: v.number(),
+        products: v.optional(v.array(v.object({
+            productId: v.id("products"),
+            quantity: v.number(),
+            price: v.number(),
+        }))),
+        extraAmount: v.optional(v.number()),
+        createdAt: v.number(),
+    })
+        .index("by_created_at", ["createdAt"]),
 });

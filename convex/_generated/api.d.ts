@@ -13,6 +13,7 @@ import type {
   FilterApi,
   FunctionReference,
 } from "convex/server";
+import type * as avulsos from "../avulsos.js";
 import type * as bitcoin from "../bitcoin.js";
 import type * as configurations from "../configurations.js";
 import type * as dishes from "../dishes.js";
@@ -32,6 +33,7 @@ import type * as users from "../users.js";
  * ```
  */
 declare const fullApi: ApiFromModules<{
+  avulsos: typeof avulsos;
   bitcoin: typeof bitcoin;
   configurations: typeof configurations;
   dishes: typeof dishes;

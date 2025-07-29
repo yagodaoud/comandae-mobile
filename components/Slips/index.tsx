@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, ScrollView, Platform, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Feather } from '@expo/vector-icons';
+import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS } from '@/constants/theme';
 import TransparentHeader from '@/components/TransparentHeader';
 import { ComandaCard } from './ComandaCard';
@@ -14,8 +14,10 @@ import { api } from '@/convex/_generated/api';
 import AddSlipModal from './AddSlipModal';
 import { Id } from '@/convex/_generated/dataModel';
 import { LoadingOverlay } from '@/components/ui/LoadingOverlay';
+import { useRouter } from 'expo-router';
 
 export default function Slips() {
+    const router = useRouter();
     const insets = useSafeAreaInsets();
     const [searchQuery, setSearchQuery] = useState('');
     const [isAddModalVisible, setIsAddModalVisible] = useState(false);
@@ -88,6 +90,8 @@ export default function Slips() {
                 searchQuery={searchQuery}
                 onSearchChange={setSearchQuery}
                 onAddPress={() => setIsAddModalVisible(true)}
+                rightIcon={<MaterialCommunityIcons name="bottle-water" size={22} color="#fff" />}
+                onRightIconPress={() => router.push('/avulsos')}
             />
 
             <StatsCard
