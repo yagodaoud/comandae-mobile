@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
 import { COLORS } from '@/constants/theme';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -85,13 +85,16 @@ export default function ReportScreen() {
     const insets = useSafeAreaInsets();
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [showDatePicker, setShowDatePicker] = useState(false);
+    const [selectedTab, setSelectedTab] = useState<'todos' | 'comandas' | 'avulsos'>('todos');
     const router = useRouter();
 
     const dateString = selectedDate.toISOString().slice(0, 10);
-    const summary = useQuery(api.slips.getReportSummaryByDate, { date: dateString });
-    const loading = summary === undefined;
-    const total = summary?.total ?? 0;
-    const byType: Record<PaymentType, number> = summary?.byType ?? { cash: 0, card: 0, pix: 0, bitcoin: 0 };
+    const dailyTotals = useQuery(api.slips.getDailyTotalsByDate, { date: dateString });
+    const loading = dailyTotals === undefined;
+    const slipsTotal = dailyTotals?.slipsTotal ?? 0;
+    const avulsosTotal = dailyTotals?.avulsosTotal ?? 0;
+    const total = dailyTotals?.total ?? 0;
+    const byType: Record<PaymentType, number> = dailyTotals?.byType ?? { cash: 0, card: 0, pix: 0, bitcoin: 0 };
 
     const formattedDate = `${selectedDate.getDate().toString().padStart(2, '0')}/${(selectedDate.getMonth() + 1).toString().padStart(2, '0')}/${selectedDate.getFullYear()}`;
 
@@ -106,7 +109,7 @@ export default function ReportScreen() {
             <View style={styles.headerRow}>
                 <TouchableOpacity onPress={() => setShowDatePicker(true)} style={styles.dateButton}>
                     <Feather name="calendar" size={18} color={COLORS.primary} />
-                    <Text style={styles.dateText}>{formattedDate}</Text>
+                    <Text style={styles.dateText}>{`${selectedDate.getDate().toString().padStart(2, '0')}/${(selectedDate.getMonth() + 1).toString().padStart(2, '0')}/${selectedDate.getFullYear()}`}</Text>
                 </TouchableOpacity>
                 {showDatePicker && (
                     <DateTimePicker
@@ -120,47 +123,65 @@ export default function ReportScreen() {
                     />
                 )}
             </View>
-            <View style={styles.summaryCard}>
-                <Text style={styles.summaryLabel}>Total do Dia</Text>
-                {loading ? (
-                    <ActivityIndicator color={COLORS.secondary} size="large" style={{ marginTop: 8 }} />
-                ) : (
-                    <Text style={styles.summaryValue}>{formatBRL(total)}</Text>
-                )}
-            </View>
-            <View style={styles.cardsRow}>
-                {(Object.keys(paymentLabels) as PaymentType[]).map(type => (
-                    <View key={type} style={[styles.card, { backgroundColor: paymentColors[type] }]}>
-                        <View style={styles.cardIcon}>{paymentIcons[type]}</View>
-                        <Text style={styles.cardLabel}>{paymentLabels[type]}</Text>
-                        {loading ? (
-                            <ActivityIndicator color="#fff" size="small" style={{ marginTop: 8 }} />
-                        ) : (
-                            <Text style={styles.cardValue}>{formatBRL(byType[type])}</Text>
-                        )}
-                    </View>
+            {/* Tab Row */}
+            <View style={styles.tabRow}>
+                {['todos', 'comandas', 'avulsos'].map(tab => (
+                    <TouchableOpacity
+                        key={tab}
+                        style={[styles.tabButton, selectedTab === tab && styles.tabButtonSelected]}
+                        onPress={() => setSelectedTab(tab as any)}
+                    >
+                        <Text style={[styles.tabButtonText, selectedTab === tab && styles.tabButtonTextSelected]}>
+                            {tab === 'todos' ? 'Todos' : tab === 'comandas' ? 'Comandas' : 'Avulsos'}
+                        </Text>
+                    </TouchableOpacity>
                 ))}
             </View>
-            <View style={styles.pieChartContainer}>
-                <Text style={styles.sectionTitle}>Distribuição dos Pagamentos</Text>
-                {loading ? (
-                    <ActivityIndicator color={COLORS.secondary} size="large" style={{ marginTop: 16 }} />
-                ) : Object.values(byType).every(v => v === 0) ? (
-                    <View style={{ minHeight: 100, justifyContent: 'center', alignItems: 'center' }}>
-                        <Text style={{ color: '#888', fontSize: 16, marginTop: 16 }}>Nenhum pagamento registrado neste dia</Text>
-                    </View>
-                ) : (
-                    <PieChart byType={byType} />
-                )}
-                <View style={styles.legendRow}>
+            <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
+                <View style={styles.summaryCard}>
+                    <Text style={styles.summaryLabel}>Total do Dia</Text>
+                    {loading ? (
+                        <ActivityIndicator color={COLORS.secondary} size="large" style={{ marginTop: 8 }} />
+                    ) : (
+                        <Text style={styles.summaryValue}>
+                            {formatBRL(selectedTab === 'todos' ? total : selectedTab === 'comandas' ? slipsTotal : avulsosTotal)}
+                        </Text>
+                    )}
+                </View>
+                <View style={styles.cardsRow}>
                     {(Object.keys(paymentLabels) as PaymentType[]).map(type => (
-                        <View key={type} style={styles.legendItem}>
-                            <View style={[styles.legendColor, { backgroundColor: paymentColors[type] }]} />
-                            <Text style={styles.legendLabel}>{paymentLabels[type]}</Text>
+                        <View key={type} style={[styles.card, { backgroundColor: paymentColors[type] }]}>
+                            <View style={styles.cardIcon}>{paymentIcons[type]}</View>
+                            <Text style={styles.cardLabel}>{paymentLabels[type]}</Text>
+                            {loading ? (
+                                <ActivityIndicator color="#fff" size="small" style={{ marginTop: 8 }} />
+                            ) : (
+                                <Text style={styles.cardValue}>{formatBRL(byType[type])}</Text>
+                            )}
                         </View>
                     ))}
                 </View>
-            </View>
+                <View style={styles.pieChartContainer}>
+                    <Text style={styles.sectionTitle}>Distribuição dos Pagamentos</Text>
+                    {loading ? (
+                        <ActivityIndicator color={COLORS.secondary} size="large" style={{ marginTop: 16 }} />
+                    ) : Object.values(byType).every(v => v === 0) ? (
+                        <View style={{ minHeight: 100, justifyContent: 'center', alignItems: 'center' }}>
+                            <Text style={{ color: '#888', fontSize: 16, marginTop: 16 }}>Nenhum pagamento registrado neste dia</Text>
+                        </View>
+                    ) : (
+                        <PieChart byType={byType} />
+                    )}
+                    <View style={styles.legendRow}>
+                        {(Object.keys(paymentLabels) as PaymentType[]).map(type => (
+                            <View key={type} style={styles.legendItem}>
+                                <View style={[styles.legendColor, { backgroundColor: paymentColors[type] }]} />
+                                <Text style={styles.legendLabel}>{paymentLabels[type]}</Text>
+                            </View>
+                        ))}
+                    </View>
+                </View>
+            </ScrollView>
         </View>
     );
 }
@@ -289,5 +310,29 @@ const styles = StyleSheet.create({
     legendLabel: {
         fontSize: 13,
         color: '#333',
+    },
+    tabRow: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 8,
+        gap: 8,
+    },
+    tabButton: {
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: 20,
+        backgroundColor: '#f0f0f0',
+        marginHorizontal: 4,
+    },
+    tabButtonSelected: {
+        backgroundColor: COLORS.secondary,
+    },
+    tabButtonText: {
+        color: COLORS.secondary,
+        fontWeight: 'bold',
+    },
+    tabButtonTextSelected: {
+        color: '#fff',
     },
 }); 

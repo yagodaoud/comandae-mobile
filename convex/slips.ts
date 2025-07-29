@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
+import { api as avulsosApi } from './_generated/api';
 
 export const getSlips = query({
     args: {
@@ -456,5 +457,33 @@ export const getSlipById = query({
         const slip = await ctx.db.get(args.id);
         if (!slip) return null;
         return slip;
+    },
+});
+
+export const getDailyTotalsByDate = query({
+    args: { date: v.string() },
+    handler: async (ctx, args) => {
+        // Slips total
+        const { date } = args;
+        const startOfDay = new Date(date + 'T00:00:00.000Z').getTime();
+        const endOfDay = new Date(date + 'T23:59:59.999Z').getTime();
+        const slips = await ctx.db
+            .query('slips')
+            .withIndex('by_payment_time', q => q.gte('paymentTime', startOfDay).lte('paymentTime', endOfDay))
+            .filter(q => q.eq(q.field('isOpen'), false))
+            .collect();
+        const slipsTotal = slips.reduce((sum, slip) => sum + (slip.finalTotal || slip.total || 0), 0);
+        // Avulsos total
+        const avulsos = await ctx.db
+            .query('avulsos')
+            .withIndex('by_created_at', q => q.gte('createdAt', startOfDay).lte('createdAt', endOfDay))
+            .collect();
+        const avulsosTotal = avulsos.reduce((sum, avulso) => sum + (avulso.total || 0), 0);
+        // Combined
+        return {
+            slipsTotal,
+            avulsosTotal,
+            total: slipsTotal + avulsosTotal,
+        };
     },
 }); 

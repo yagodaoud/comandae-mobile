@@ -135,4 +135,19 @@ export const updateAvulso = mutation({
         const { _id, ...fields } = args;
         await ctx.db.patch(_id, fields);
     },
+});
+
+export const getAvulsosTotalByDate = query({
+    args: { date: v.string() },
+    handler: async (ctx, args) => {
+        const { date } = args;
+        const startOfDay = new Date(date + 'T00:00:00.000Z').getTime();
+        const endOfDay = new Date(date + 'T23:59:59.999Z').getTime();
+        const avulsos = await ctx.db
+            .query('avulsos')
+            .withIndex('by_created_at', q => q.gte('createdAt', startOfDay).lte('createdAt', endOfDay))
+            .collect();
+        const total = avulsos.reduce((sum, avulso) => sum + (avulso.total || 0), 0);
+        return { total };
+    },
 }); 

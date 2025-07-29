@@ -4,6 +4,7 @@ import { useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { useAuthRedirect } from '@/hooks/useAuthRedirect';
 import { COLORS } from '@/constants/theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const formatCurrency = (value: number) => {
     return value.toLocaleString('pt-BR', {
@@ -14,13 +15,18 @@ const formatCurrency = (value: number) => {
 
 const InsightsCard: React.FC = () => {
     const dailyGoalConfig = useQuery(api.configurations.getConfig, { name: 'daily_goal' });
+    // Use today's date for the unified total
+    const today = new Date();
+    const dateString = today.toISOString().slice(0, 10);
+    const dailyTotals = useQuery(api.slips.getDailyTotalsByDate, { date: dateString });
+    // Keep dailyProgress for trend if needed
     const dailyProgress = useQuery(api.slips.getDailyProgress);
 
     // Handle authentication errors
     useAuthRedirect(dailyGoalConfig);
 
     const dailyGoal = dailyGoalConfig && !(dailyGoalConfig instanceof Error) ? parseFloat(dailyGoalConfig.value) : 0;
-    const currentProgress = dailyProgress?.todayTotal || 0;
+    const currentProgress = dailyTotals?.total || 0;
     const yesterdayProgress = dailyProgress?.yesterdayTotal || 0;
 
     const percentage = dailyGoal > 0 ? Math.round((currentProgress / dailyGoal) * 100) : 0;
