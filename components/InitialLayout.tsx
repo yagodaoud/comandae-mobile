@@ -19,7 +19,7 @@ export default function InitialLayout() {
 
     }, [isLoaded, isSignedIn, segments]);
 
-    if (!isLoaded) return;
+    if (!isLoaded) return null;
 
     return <Stack screenOptions={{ headerShown: false }} />
 }
